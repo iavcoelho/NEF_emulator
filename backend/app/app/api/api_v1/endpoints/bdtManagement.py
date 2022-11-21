@@ -12,7 +12,6 @@ from app.db.session import client
 from .utils import add_notifications
 
 router = APIRouter()
-#TODO: db
 db_collection= 'BdtManagement'
 
 @router.get("/{scsAsId}/subscriptions", response_model=List[schemas.Bdt])
@@ -23,10 +22,9 @@ def read_active_subscriptions(
     http_request: Request
 ) -> Any:
     """
-    Get subscription by id
-    """
+    Read all active subscriptions
+    """ 
     db_mongo = client.fastapi
-    print(current_user)
     retrieved_docs = crud_mongo.read_all(db_mongo, db_collection, current_user.id)
 
     #Check if there are any active subscriptions
@@ -39,14 +37,13 @@ def read_active_subscriptions(
 
 #Callback 
 
-# bdt_callback_router = APIRouter()
+bdt_callback_router = APIRouter()
 
-# @bdt_callback_router.post("{$request.body.notificationDestination}",response_class=Response)
-# def bdt_notification(body: schemas.ExNotification):
-#     pass
+@bdt_callback_router.post("{$request.body.notificationDestination}",response_class=Response)
+def bdt_notification(body: schemas.ExNotification):
+    pass
 
-# , callbacks=bdt_callback_router.routes
-@router.post("/{scsAsId}/subscriptions", responses={201: {"model" : schemas.Bdt}})
+@router.post("/{scsAsId}/subscriptions", responses={201: {"model" : schemas.Bdt}}, callbacks=bdt_callback_router.routes)
 def create_subscription(
     *,
     scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
@@ -55,7 +52,9 @@ def create_subscription(
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request
 ) -> Any:
-    
+    """
+    Create new subscription.
+    """
     db_mongo = client.fastapi
     json_data = jsonable_encoder(item_in)
     json_data.update({'owner_id' : current_user.id})
@@ -77,4 +76,102 @@ def create_subscription(
     http_response = JSONResponse(content=updated_doc, status_code=201, headers=response_header)
     add_notifications(http_request, http_response, False)
 
+    return http_response
+
+@router.get("/{scsAsId}/subscriptions/{subscriptionId}", response_model=schemas.Bdt)
+def read_subscription(
+    *,
+    scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
+    subscriptionId: str = Path(..., title="Identifier of the subscription resource"),
+    current_user: models.User = Depends(deps.get_current_active_user),
+    http_request: Request
+) -> Any:
+    """
+    Get subscription by id
+    """
+    db_mongo = client.fastapi
+
+    try:
+        retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail='Please enter a valid uuid (24-character hex string)')
+    
+    #Check if the document exists
+    if not retrieved_doc:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    #If the document exists then validate the owner
+    if not user.is_superuser(current_user) and (retrieved_doc['owner_id'] != current_user.id):
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    retrieved_doc.pop("owner_id")
+    http_response = JSONResponse(content=retrieved_doc, status_code=200)
+    add_notifications(http_request, http_response, False)
+    return http_response
+
+@router.put("/{scsAsId}/subscriptions/{subscriptionId}", response_model=schemas.Bdt)
+def update_subscription(
+    *,
+    scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
+    subscriptionId: str = Path(..., title="Identifier of the subscription resource"),
+    item_in: schemas.MonitoringEventSubscriptionCreate,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    http_request: Request
+) -> Any:
+    """
+    Update/Replace an existing subscription resource by id
+    """
+    db_mongo = client.fastapi
+
+    try:
+        retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail='Please enter a valid uuid (24-character hex string)')
+    
+    #Check if the document exists
+    if not retrieved_doc:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    #If the document exists then validate the owner
+    if not user.is_superuser(current_user) and (retrieved_doc['owner_id'] != current_user.id):
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    #Update the document
+    json_data = jsonable_encoder(item_in)
+    crud_mongo.update_new_field(db_mongo, db_collection, subscriptionId, json_data)
+
+    #Retrieve the updated document | UpdateResult is not a dict
+    updated_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
+    updated_doc.pop("owner_id")
+    http_response = JSONResponse(content=updated_doc, status_code=200)
+    add_notifications(http_request, http_response, False)
+    return http_response
+
+@router.delete("/{scsAsId}/subscriptions/{subscriptionId}", response_model=schemas.Bdt)
+def delete_subscription(
+    *,
+    scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
+    subscriptionId: str = Path(..., title="Identifier of the subscription resource"),
+    current_user: models.User = Depends(deps.get_current_active_user),
+    http_request: Request
+) -> Any:
+    """
+    Delete a subscription
+    """
+    db_mongo = client.fastapi
+
+    try:
+        retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail='Please enter a valid uuid (24-character hex string)')
+
+
+    #Check if the document exists
+    if not retrieved_doc:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    #If the document exists then validate the owner
+    if not user.is_superuser(current_user) and (retrieved_doc['owner_id'] != current_user.id):
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    crud_mongo.delete_by_uuid(db_mongo, db_collection, subscriptionId)
+    http_response = JSONResponse(content=retrieved_doc, status_code=200)
+    add_notifications(http_request, http_response, False)
     return http_response
