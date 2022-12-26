@@ -9,4 +9,6 @@ from .UE import router
 from .qosInformation import router
 from .qosMonitoring import router
 from .monitoringevent import router
+from .bdtManagement import router
+# from .trafficInfluence import router
 from .testReport import router
