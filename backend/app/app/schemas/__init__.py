@@ -8,5 +8,5 @@ from .UE import UE, UECreate, UEUpdate, Speed, ue_path, UEhex
 from .monitoringevent import MonitoringEventSubscriptionCreate, MonitoringEventSubscription, MonitoringEventReport, MonitoringEventReportReceived, MonitoringNotification
 from .qosMonitoring import AsSessionWithQoSSubscriptionCreate, AsSessionWithQoSSubscription, UserPlaneNotificationData
 from .resourceManagementOfBdt import Bdt, BdtCreate, BdtPatch, ExNotification
-# from .trafficInfluence import TrafficInfluSub, TrafficInfluSubCreate, EventNotification
+from .trafficInfluence import TrafficInfluSub, TrafficInfluSubCreate, EventNotification
 from .utils import scenario
