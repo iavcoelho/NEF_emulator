@@ -22,5 +22,5 @@ nef_router = APIRouter()
 nef_router.include_router(endpoints.monitoringevent.router, prefix="/3gpp-monitoring-event/v1", tags=["Monitoring Event API"])
 nef_router.include_router(endpoints.qosMonitoring.router, prefix="/3gpp-as-session-with-qos/v1", tags=["Session With QoS API"])
 nef_router.include_router(endpoints.bdtManagement.router, prefix="/3gpp-bdt/v1", tags=["Resource Management of Bdt API"])
-
+nef_router.include_router(endpoints.trafficInfluence.router, prefix="/3gpp-traffic-influence/v1", tags=["Traffic Influence API"])
 
