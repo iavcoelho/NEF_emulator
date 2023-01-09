@@ -196,9 +196,10 @@ def read_subscription(
     
     parameterSet = None
     
-    for cpParameterSet in retrieved_doc['cpParameterSets']:
-        if cpParameterSet['setId'] == setId:
+    for cpParameterSet in retrieved_doc.get('cpParameterSets'):
+        if cpParameterSet.get('setId') == setId:
             parameterSet = cpParameterSet
+            break
     
     if parameterSet == None:
         raise HTTPException(status_code=404, detail="Cp Parameter Set not found")
@@ -207,3 +208,116 @@ def read_subscription(
     #add_notifications(http_request, http_response, False)
     return http_response
 
+@router.put("/{scsAsId}/subscriptions/{subscriptionId}/cpSets/{setId}", response_model=schemas.CpParameterSet)
+def update_subscription(
+    *,
+    scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
+    subscriptionId: str = Path(..., title="Identifier of the subscription resource"),
+    setId: str = Path(..., title="Identifier of the subscription resource"),
+    item_in: schemas.CpParameterSetCreate,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    http_request: Request
+) -> Any:
+    """
+    Update/Replace an existing cp parameter set by id
+    """
+    db_mongo = client.fastapi
+
+    try:
+        retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail='Please enter a valid uuid (24-character hex string)')
+    
+    #Check if the document exists
+    if not retrieved_doc:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    #If the document exists then validate the owner
+    if not user.is_superuser(current_user) and (retrieved_doc['owner_id'] != current_user.id):
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    parameterSet = None
+    parameterSets = []
+    
+    for cpParameterSet in retrieved_doc.get('cpParameterSets'):
+        if cpParameterSet.get('setId') != setId:
+            parameterSets.append(cpParameterSet)
+        else:
+            parameterSet = cpParameterSet
+            json_data = jsonable_encoder(item_in)
+            parameterSets.append(json_data)
+    
+    if parameterSet == None:
+        raise HTTPException(status_code=404, detail="Cp Parameter Set not found")
+
+    #Update the document
+    data = jsonable_encoder({"cpParameterSets": parameterSets})
+    crud_mongo.update_new_field(db_mongo, db_collection, subscriptionId, data)
+
+    #Retrieve the updated document | UpdateResult is not a dict
+    updated_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
+
+    for cpParameterSet in updated_doc.get('cpParameterSets'):
+        if cpParameterSet.get('setId') == setId:
+            parameterSet = cpParameterSet
+            break
+
+    http_response = JSONResponse(content=parameterSet, status_code=200)
+    #add_notifications(http_request, http_response, False)
+    return http_response
+
+@router.delete("/{scsAsId}/subscriptions/{subscriptionId}/cpSets/{setId}", response_model=schemas.CpParameterSet)
+def delete_subscription(
+    *,
+    scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
+    subscriptionId: str = Path(..., title="Identifier of the subscription resource"),
+    setId: str = Path(..., title="Identifier of the subscription resource"),
+    current_user: models.User = Depends(deps.get_current_active_user),
+    http_request: Request
+) -> Any:
+    """
+    Delete a subscription
+    """
+    db_mongo = client.fastapi
+
+    try:
+        retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
+    except Exception as ex:
+        raise HTTPException(status_code=400, detail='Please enter a valid uuid (24-character hex string)')
+
+
+    #Check if the document exists
+    if not retrieved_doc:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    #If the document exists then validate the owner
+    if not user.is_superuser(current_user) and (retrieved_doc['owner_id'] != current_user.id):
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    parameterSet = None
+    parameterSets = []
+    
+    for cpParameterSet in retrieved_doc.get('cpParameterSets'):
+        if cpParameterSet.get('setId') != setId:
+            parameterSets.append(cpParameterSet)
+        else:
+            parameterSet = cpParameterSet
+    
+    if parameterSet == None:
+        raise HTTPException(status_code=404, detail="Cp Parameter Set not found")
+
+    #Update the document
+    data = jsonable_encoder({"cpParameterSets": parameterSets})
+    crud_mongo.update_new_field(db_mongo, db_collection, subscriptionId, data)
+
+    #Retrieve the updated document | UpdateResult is not a dict
+    updated_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
+
+    parameterSet = {}
+
+    for cpParameterSet in updated_doc.get('cpParameterSets'):
+        if cpParameterSet.get('setId') == setId:
+            parameterSet = cpParameterSet
+            break
+
+    http_response = JSONResponse(content=parameterSet, status_code=200)
+    # add_notifications(http_request, http_response, False)
+    return http_response
