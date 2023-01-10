@@ -32,7 +32,7 @@ def read_active_subscriptions(
         raise HTTPException(status_code=404, detail="There are no active subscriptions")
     
     http_response = JSONResponse(content=retrieved_docs, status_code=200)
-    #add_notifications(http_request, http_response, False)
+    add_notifications(http_request, http_response, False)
     return http_response
 
 @router.post("/{scsAsId}/subscriptions", responses={201: {"model" : schemas.CpInfo}})
@@ -66,7 +66,7 @@ def create_subscription(
     updated_doc.pop("owner_id") #Remove owner_id from the response
 
     http_response = JSONResponse(content=updated_doc, status_code=201, headers=response_header)
-    #add_notifications(http_request, http_response, False)
+    add_notifications(http_request, http_response, False)
 
     return http_response
 
@@ -97,7 +97,7 @@ def read_subscription(
     
     retrieved_doc.pop("owner_id")
     http_response = JSONResponse(content=retrieved_doc, status_code=200)
-    #add_notifications(http_request, http_response, False)
+    add_notifications(http_request, http_response, False)
     return http_response
 
 @router.put("/{scsAsId}/subscriptions/{subscriptionId}", response_model=schemas.CpInfo)
@@ -134,7 +134,7 @@ def update_subscription(
     updated_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
     updated_doc.pop("owner_id")
     http_response = JSONResponse(content=updated_doc, status_code=200)
-    #add_notifications(http_request, http_response, False)
+    add_notifications(http_request, http_response, False)
     return http_response
 
 @router.delete("/{scsAsId}/subscriptions/{subscriptionId}", response_model=schemas.CpInfo)
@@ -205,7 +205,7 @@ def read_subscription(
         raise HTTPException(status_code=404, detail="Cp Parameter Set not found")
 
     http_response = JSONResponse(content=parameterSet, status_code=200)
-    #add_notifications(http_request, http_response, False)
+    add_notifications(http_request, http_response, False)
     return http_response
 
 @router.put("/{scsAsId}/subscriptions/{subscriptionId}/cpSets/{setId}", response_model=schemas.CpParameterSet)
@@ -262,7 +262,7 @@ def update_subscription(
             break
 
     http_response = JSONResponse(content=parameterSet, status_code=200)
-    #add_notifications(http_request, http_response, False)
+    add_notifications(http_request, http_response, False)
     return http_response
 
 @router.delete("/{scsAsId}/subscriptions/{subscriptionId}/cpSets/{setId}", response_model=schemas.CpParameterSet)
@@ -319,5 +319,5 @@ def delete_subscription(
             break
 
     http_response = JSONResponse(content=parameterSet, status_code=200)
-    # add_notifications(http_request, http_response, False)
+    add_notifications(http_request, http_response, False)
     return http_response
