@@ -13,4 +13,5 @@ from .trafficInfluence import TrafficInfluSub, TrafficInfluSubCreate, EventNotif
 from .chargeableParty import ChargeableParty, ChargeablePartyCreate
 from .netStatReport import NetworkStatusReportingSubscription, NetworkStatusReportingSubscriptionCreate, NetworkStatusReportingNotification
 from .cpParameterProvisioning import CpInfo, CpInfoCreate, CpParameterSet, CpParameterSetCreate
+from .pfdManagement import PfdManagement, PfdManagementCreate
 from .utils import scenario

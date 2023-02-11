@@ -12,9 +12,9 @@ from app.db.session import client
 from .utils import add_notifications
 
 router = APIRouter()
-db_collection= 'ChargeableParty'
+db_collection= 'PfdManagement'
 
-@router.get("/{scsAsId}/transactions", response_model=List[schemas.ChargeableParty])
+@router.get("/{scsAsId}/transactions", response_model=List[schemas.PfdManagement])
 def read_active_subscriptions(
     *,
     scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
@@ -37,18 +37,18 @@ def read_active_subscriptions(
 
 #Callback 
 
-chargParty_callback_router = APIRouter()
+pfdManagement_callback_router = APIRouter()
 #TODO: checkar isto aqui da notificação
-@chargParty_callback_router.post("{$request.body.notificationDestination}",response_class=Response)
+@pfdManagement_callback_router.post("{$request.body.notificationDestination}",response_class=Response)
 def chargParty_notification(body: schemas.EventNotification):
     pass
 
-@router.post("/{scsAsId}/transactions", responses={201: {"model" : schemas.ChargeableParty}}, callbacks=chargParty_callback_router.routes)
+@router.post("/{scsAsId}/transactions", responses={201: {"model" : schemas.PfdManagement}}, callbacks=pfdManagement_callback_router.routes)
 def create_subscription(
     *,
     scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
     db: Session = Depends(deps.get_db),
-    item_in: schemas.ChargeablePartyCreate,
+    item_in: schemas.PfdManagementCreate,
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request
 ) -> Any:
@@ -78,7 +78,7 @@ def create_subscription(
 
     return http_response
 
-@router.get("/{scsAsId}/transactions/{transactionId}", response_model=schemas.ChargeableParty)
+@router.get("/{scsAsId}/transactions/{transactionId}", response_model=schemas.PfdManagement)
 def read_subscription(
     *,
     scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
@@ -108,12 +108,12 @@ def read_subscription(
     add_notifications(http_request, http_response, False)
     return http_response
 
-@router.put("/{scsAsId}/transactions/{transactionId}", response_model=schemas.ChargeableParty)
+@router.put("/{scsAsId}/transactions/{transactionId}", response_model=schemas.PfdManagement)
 def update_subscription(
     *,
     scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
     transactionId: str = Path(..., title="Identifier of the subscription resource"),
-    item_in: schemas.ChargeablePartyCreate,
+    item_in: schemas.PfdManagementCreate,
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request
 ) -> Any:
@@ -145,7 +145,7 @@ def update_subscription(
     add_notifications(http_request, http_response, False)
     return http_response
 
-@router.delete("/{scsAsId}/transactions/{transactionId}", response_model=schemas.ChargeableParty)
+@router.delete("/{scsAsId}/transactions/{transactionId}", response_model=schemas.PfdManagement)
 def delete_subscription(
     *,
     scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),

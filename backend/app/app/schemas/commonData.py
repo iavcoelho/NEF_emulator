@@ -16,10 +16,13 @@ from enum import Enum
 #DurationSec - int -> ge = 0
 #DayOfWeek ???
 #TimeOfDay ???
+#DurationSecRm ???
+#DurationSecRo ???
 
 #TODO:
 #29.571
 #SupportedFeatures
+#Dnai
 
 #TODO:
 #29.122
