@@ -14,4 +14,5 @@ from .chargeableParty import ChargeableParty, ChargeablePartyCreate
 from .netStatReport import NetworkStatusReportingSubscription, NetworkStatusReportingSubscriptionCreate, NetworkStatusReportingNotification
 from .cpParameterProvisioning import CpInfo, CpInfoCreate, CpParameterSet, CpParameterSetCreate
 from .pfdManagement import PfdManagement, PfdManagementCreate
+from .npConfiguration import NpConfiguration, NpConfigurationCreate, ConfigurationNotification
 from .utils import scenario

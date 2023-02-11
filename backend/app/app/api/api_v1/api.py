@@ -27,3 +27,4 @@ nef_router.include_router(endpoints.chargeableParty.router, prefix="/3gpp-charge
 nef_router.include_router(endpoints.netStatReport.router, prefix="/3gpp-net-stat-report/v1", tags=["Reporting Network Status API"])
 nef_router.include_router(endpoints.cpParameterProvisioning.router, prefix="/3gpp-cp-parameter-provisioning/v1", tags=["Cp Parameter Provisioning API"])
 nef_router.include_router(endpoints.pfdManagement.router, prefix="/3gpp-pfd-management/v1", tags=["Pfd Management API"])
+nef_router.include_router(endpoints.npConfiguration.router, prefix="/3gpp-network-parameter-configuration/v1", tags=["Network Parameter Configuration API"])

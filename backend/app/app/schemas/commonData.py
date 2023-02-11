@@ -29,6 +29,7 @@ from enum import Enum
 #WebsockNotifConfig
 #LocationArea
 #LocationArea5G
+#ConfigResult
 
 
 class Snssai(BaseModel):
