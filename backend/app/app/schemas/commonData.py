@@ -24,6 +24,7 @@ from enum import Enum
 #SupportedFeatures
 #Dnai
 #TypeAllocationCode
+#Gpsi
 
 #TODO:
 #29.122
