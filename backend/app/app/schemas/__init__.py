@@ -15,4 +15,5 @@ from .netStatReport import NetworkStatusReportingSubscription, NetworkStatusRepo
 from .cpParameterProvisioning import CpInfo, CpInfoCreate, CpParameterSet, CpParameterSetCreate
 from .pfdManagement import PfdManagement, PfdManagementCreate
 from .npConfiguration import NpConfiguration, NpConfigurationCreate, ConfigurationNotification
+from .racsProvisioning import RacsProvisioningData, RacsProvisioningDataCreate
 from .utils import scenario

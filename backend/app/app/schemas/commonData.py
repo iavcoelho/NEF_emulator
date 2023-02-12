@@ -23,6 +23,7 @@ from enum import Enum
 #29.571
 #SupportedFeatures
 #Dnai
+#TypeAllocationCode
 
 #TODO:
 #29.122

@@ -16,3 +16,4 @@ from .netStatReport import router
 from .cpParameterProvisioning import router
 from .pfdManagement import router
 from .npConfiguration import router
+from .racsProvisioning import router
