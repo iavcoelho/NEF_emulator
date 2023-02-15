@@ -1,16 +1,15 @@
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, time
 from pydantic import BaseModel, Field, IPvAnyAddress, AnyHttpUrl, constr
 from enum import Enum
-from .commonData import Snssai
+from .commonData import Snssai, DayOfWeek
 
 class ScheduledCommunicationTime(BaseModel):
     """Represents an offered scheduled communication time.""" 
-    # daysOfWeek: List[DayOfWeek] = Field(None, description="Identifies the day(s) of the week. If absent, it indicates every day of the week.", min_items=1, max_items=6)
-    # timeOfDayStart: TimeOfDay
-    # timeOfDayEnd: TimeOfDay
-    pass
-
+    daysOfWeek: List[DayOfWeek] = Field(None, description="Identifies the day(s) of the week. If absent, it indicates every day of the week.", min_items=1, max_items=6)
+    timeOfDayStart: time
+    timeOfDayEnd: time
+    
 class CpFailureCode(str, Enum):
     malfunction = "MALFUNCTION"
     set_id_duplicated = "SET_ID_DUPLICATED"

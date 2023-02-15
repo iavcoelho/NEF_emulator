@@ -2,21 +2,90 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field, IPvAnyAddress, AnyHttpUrl, constr
 from enum import Enum
-from .commonData import Snssai, TimeWindow, FlowInfo
+from .commonData import Snssai, TimeWindow, FlowInfo, Ecgi, Ncgi, GlobalRanNodeId, Tai
+from .cpParameterProvisioning import ScheduledCommunicationTime
+
+############### TS 29.554 Types ###############
+
+class NetworkAreaInfo(BaseModel):
+    """Describes a network area information in which the NF service consumer requests the number of UEs. """
+    ecgis: List[Ecgi] = Field(None, description="Contains a list of E-UTRA cell identities.", min_items=1)
+    ncgis: List[Ncgi] = Field(None, description="Contains a list of NR cell identities.", min_items=1)
+    gRanNodeIds: List[GlobalRanNodeId] = Field(None, description="Contains a list of NG RAN nodes.", min_items=1)
+    tais: List[Tai] = Field(None, description="Contains a list of tracking area identities.", min_items=1)
+    
+
+###############################################
+
+############### TS 29.512 Types ###############
+
+class FlowDirection(str, Enum):
+    downlink = "DOWNLINK" 
+    uplink = "UPLINK" 
+    bidirectional = "BIDIRECTIONAL" 
+    unspecified = "UNSPECIFIED"
+
+###############################################
+
+############### TS 29.514 Types ###############
+
+class EthFlowDescription(BaseModel):
+    """Identifies an Ethernet flow."""
+    destMacAddr: constr(regex=r'^([0-9a-fA-F]{2})((-[0-9a-fA-F]{2}){5})$')
+    ethType: str
+    fDesc: str = Field(None, description="Defines a packet filter of an IP flow.")
+    fDir: FlowDirection
+    sourceMacAddr: constr(regex=r'^([0-9a-fA-F]{2})((-[0-9a-fA-F]{2}){5})$')
+    vlanTags: List[str] = Field(None, description="", min_items=1, max_items=2)
+    srcMacAddrEnd: constr(regex=r'^([0-9a-fA-F]{2})((-[0-9a-fA-F]{2}){5})$')
+    destMacAddrEnd: constr(regex=r'^([0-9a-fA-F]{2})((-[0-9a-fA-F]{2}){5})$')
+
+###############################################
+
 
 ############### TS 29.520 Types ###############
+
+class NetworkPerfType(str, Enum):
+    gnbActiveRatio = "GNB_ACTIVE_RATIO" 
+    gnbComputingUsage = "GNB_COMPUTING_USAGE" 
+    gnbMemoryUsage = "GNB_MEMORY_USAGE" 
+    gnbDiskUsage = "GNB_DISK_USAGE" 
+    numOfUE = "NUM_OF_UE" 
+    sessSuccRatio = "SESS_SUCC_RATIO" 
+    hoSuccRatio = "HO_SUCC_RATIO" 
+
+class ExceptionId(str, Enum):
+    unexpectedUELocation = "UNEXPECTED_UE_LOCATION" 
+    unexpectedLongLiveFlow = "UNEXPECTED_LONG_LIVE_FLOW" 
+    unexpectedLargeRateFlow = "UNEXPECTED_LARGE_RATE_FLOW" 
+    unexpectedWakeup= "UNEXPECTED_WAKEUP" 
+    suspecionOfDdosAttack = "SUSPICION_OF_DDOS_ATTACK" 
+    wrongDestinationAddress = "WRONG_DESTINATION_ADDRESS" 
+    tooFrequentServiceAccess = "TOO_FREQUENT_SERVICE_ACCESS" 
+    unexpectedRatioLinkFailures = "UNEXPECTED_RADIO_LINK_FAILURES" 
+    pingPongAcrossCells = "PING_PONG_ACROSS_CELLS"
+
+class ExceptionTrend(str, Enum):
+    up = "UP" 
+    down = "DOWN" 
+    unknow = "UNKNOW" 
+    stable = "STABLE"
+
+class DispersionClass(str, Enum):
+    fixed = "FIXED" 
+    camper = "CAMPER" 
+    traveller = "TRAVELLER" 
+    topHeavy = "TOP_HEAVY"
 
 class CongestionType(str, Enum):
     userPlane = "USER_PLANE" 
     controlPlane = "CONTROL_PLANE" 
     userAndControlPlane = "USER_AND_CONTROL_PLANE" 
 
-
 class TimeUnit(str, Enum):
     minute = "MINUTE" 
     hour = "HOUR" 
     day = "DAY" 
-
 
 class RetainabilityThreshold(BaseModel):
     """Represents a QoS flow retainability threshold."""
@@ -44,6 +113,106 @@ class TopApplication(BaseModel):
     ipTrafficFilter: FlowInfo
     ratio: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
 
+class Exception(BaseModel):
+    """Represents the Exception information."""
+    excepId: ExceptionId
+    excepLevel: int
+    excepTrend: ExceptionTrend
+
+class IpEthFlowDescription(BaseModel):
+    """Contains the description of an Uplink and/or Downlink Ethernet flow."""
+    ipTrafficFilter: str = Field(None, description="Defines a packet filter of an IP flow.")
+    ethTrafficFilter: EthFlowDescription
+
+class AddressList(BaseModel):
+    """Represents a list of IPv4 and/or IPv6 addresses."""
+    ipv4Addrs: List[IPvAnyAddress] = Field(None, description="String identifying an Ipv4 address", min_items=1)
+    ipv6Addrs: List[IPvAnyAddress] = Field(None, description="String identifying an Ipv6 address", min_items=1)
+
+class CircumstanceDescription(BaseModel):
+    """Contains the description of a circumstance."""
+    freq: float
+    tm: datetime
+    locArea: NetworkAreaInfo
+    vol: int = Field(None, description=" Unsigned integer identifying a volume in units of bytes.", ge=0)
+
+class AdditionalMeasurement(BaseModel):
+    """Represents additional measurement information."""
+    #TODO: 29.554 NetworkAreaInfo
+    unexpLoc: NetworkAreaInfo
+    unexpFlowTeps: List[IpEthFlowDescription] = Field(None, description="", min_items=1)
+    unexpWakes: List[datetime] = Field(None, description="", min_items=1)
+    ddosAttack: AddressList
+    wrgDest: AddressList
+    circums: List[CircumstanceDescription] = Field(None, description="", min_items=1)
+
+class TrafficCharacterization(BaseModel):
+    """Identifies the detailed traffic characterization."""
+    dnn: str = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
+    snssai: Snssai
+    appId: str = Field("", description="String providing an application identifier.")
+    fDescs: List[IpEthFlowDescription] = Field(None, description="", min_items=1, max_items=2)
+    ulVol: int = Field(None, description=" Unsigned integer identifying a volume in units of bytes.", ge=0)
+    ulVolVariance: float
+    dlVol: int = Field(None, description=" Unsigned integer identifying a volume in units of bytes.", ge=0)
+    dlVolVariance: float
+
+class AppListForUeComm(BaseModel):
+    """Represents the analytics of the application list used by UE. """
+    appId: str = Field("", description="String providing an application identifier.")
+    startTime: datetime
+    appDur: int = Field(None, description="", ge=0)
+    occurRatio: int = Field(None, description="Expressed in percent", ge=1, le=100)
+    spatialValidity: NetworkAreaInfo
+
+class SessInactTimerForUeComm(BaseModel):
+    """Represents the N4 Session inactivity timer."""
+    n4SessId: int = Field(None, description="", ge=0, le=255)
+    sessInactiveTimer: int = Field(None, description="", ge=0)
+
+class UeCommunication(BaseModel):
+    """Represents UE communication information."""
+    commDur: int = Field(None, description="", ge=0)
+    commDurVariance: float
+    perioTime: int = Field(None, description="", ge=0)
+    perioTimeVariance: float
+    ts: int = Field(None, description="", ge=0)
+    tsVariance: float
+    recurringTime: ScheduledCommunicationTime
+    trafChar: TrafficCharacterization
+    ratio: int = Field(None, description="", ge=1, le=100)
+    perioCommInd: bool
+    confidence: int = Field(None, description="", ge=0)
+    anaOfAppList: AppListForUeComm
+    sessInactTimer: SessInactTimerForUeComm
+
+class ApplicationVolume(BaseModel):
+    """ApplicationVolume"""
+    appId: str = Field(None, description="String providing an application identifier.")
+    appVolume: int = Field(None, description="", ge=0)
+
+class DispersionCollection(BaseModel):
+    """Dispersion collection per UE location or per slice."""
+    ueLoc: UserLocation
+    snssai: Snssai
+    supis: List[Supi] = Field(None, description="", min_items=1)
+    gpsis: List[constr(regex=r'^(msisdn-[0-9]{5,15}|extid-.+@.+|.+)$')] = Field(None, description="", min_items=1)
+    appVolumes: List[ApplicationVolume] = Field(None, description="", min_items=1)
+    disperAmount: int = Field(None, description="", ge=0)
+    disperClass: DispersionClass
+    usageRank: int = Field(None, description="", ge=1, le=3)
+    percentileRank: int = Field(None, description="", ge=1, le=100)
+    ueRatio: int = Field(None, description="", ge=1, le=100)
+    confidence: int = Field(None, description="", ge=0)
+
+class DispersionInfo(BaseModel):
+    """Represents the Dispersion information. When subscribed event is "DISPERSION", the 
+ "disperInfos" attribute shall be included."""
+    tsStart: datetime
+    tsDuration: int = Field(None, description="", ge=0)
+    disperCollects: List[DispersionCollection] = Field(None, description="", min_items=1)
+    disperType = DispersionType
+
 ###############################################
 
 class AnalyticsFailureCode(str, Enum):
@@ -51,7 +220,6 @@ class AnalyticsFailureCode(str, Enum):
     bothStatPredNotAllowed = "BOTH_STAT_PRED_NOT_ALLOWED" 
     unsatifiedRequestAnalyticsTime = "UNSATISFIED_REQUESTED_ANALYTICS_TIME" 
     other = "OTHER" 
-
 
 class AnalyticsEvent(str, Enum):
     ueMobility = "UE_MOBILITY" 
@@ -62,14 +230,27 @@ class AnalyticsEvent(str, Enum):
     qosSustainability = "QOS_SUSTAINABILITY" 
     dispersion = "DISPERSION" 
     dnPerformance = "DN_PERFORMANCE" 
-    serviceExperience = "SERVICE_EXPERIENCE" 
+    serviceExperience = "SERVICE_EXPERIENCE"
+
+class UeLocationInfo(BaseModel):
+    """Represents a UE location information."""
+    # loc: LocationArea5G
+    ratio: int = Field(None, description="Expressed in percent", ge=1, le=100)
+    confidence: int = Field(None, description="", ge=0)
+
+class UeMobilityExposure(BaseModel):
+    """Represents a UE mobility information."""
+    ts: datetime
+    recurringTime: ScheduledCommunicationTime
+    duration: int = Field(None, description="", ge = 0)
+    durationVariance: float
+    locInfo: List[UeLocationInfo] = Field(None, description="", min_items=1)
 
 class AnalyticsFailureEventInfo(BaseModel):
     """Represents an event for which the subscription request was not successful 
 and including the associated failure reason. """
     event: AnalyticsEvent
     failureCode: AnalyticsFailureCode
-
 
 class QosSustainabilityExposure(BaseModel):
     """Represents a QoS sustainability information."""
@@ -89,16 +270,13 @@ class CongestionAnalytics(BaseModel):
     tmWdw: TimeWindow
     nsi: ThresholdLevel
     confidence: int = Field(None, description="", ge=0)
-    #TODO: ts 29.520 TopApplication
     topAppListUl: List[TopApplication] = Field(None, description="", min_items=1)
     topAppListDl: List[TopApplication] = Field(None, description="", min_items=1)
-
 
 class CongestInfo(BaseModel):
     """Represents a UE's user data congestion information."""
     # locArea: LocationArea5G
     cngAnas: List[CongestionAnalytics] = Field(None, description="", min_items=1)
-
 
 class AbnormalExposure(BaseModel):
     """Represents a user's abnormal behavior information."""
@@ -107,18 +285,14 @@ class AbnormalExposure(BaseModel):
     appId: str = Field(None, description="String providing an application identifier.")
     dnn: Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
     snssai: Snssai
-    #TODO: ts 29.520 Exception
     excep: List[Exception]
     ratio: int = Field(None, description="Expressed in percent", ge=1, le=100)
     confidence: int = Field(None, description="", ge=0)
-    #TODO: ts 29.520 AdditionalMeasurement
     addtMeasInfo: AdditionalMeasurement
-
 
 class NetworkPerfExposure(BaseModel):
     """Represents network performance information."""
-    locArea: LocationArea5G
-    #TODO: ts 29.520 NetworkPerfType
+    # locArea: LocationArea5G
     nwPerfType: NetworkPerfType
     relativeRatio: int = Field(None, description="Expressed in percent", ge=1, le=100)
     absoluteNum: int = Field(None, description="", ge=0)
@@ -146,10 +320,9 @@ class AnalyticsData(BaseModel):
     disperReqs: List[DispersionRequirement] = Field(None, description="", min_items=1)
     suppFeat: SupportedFeatures
 
-
 class AnalyticsEventFilter(BaseModel):
     """ Represents analytics event filter information."""
-    locArea: LocationArea5G
+    # locArea: LocationArea5G
     dnn: Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
     dnais: List[Dnai] = Field(None, description="", min_items=1)
     #TODO: ts 29.520 NetworkPerfType
@@ -180,7 +353,6 @@ class AnalyticsEventFilter(BaseModel):
     maxNumOfTopAppDl: int = Field(None, description="", ge=0)
     visitedLocAreas: List[LocationArea5G] = Field(None, description="", min_items=1)
 
-
 class AnalyticsRequest(BaseModel):
     """Represents the parameters to request to retrieve analytics information."""
     analyEvent: AnalyticsEvent
@@ -190,13 +362,11 @@ class AnalyticsRequest(BaseModel):
     tgtUe: TargetUeId
     suppFeat: SupportedFeatures
 
-
 class UeLocationInfo(BaseModel):
     """Represents a UE location information."""
     loc: LocationArea5G
     ratio: int = Field(None, description="Expressed in percent", ge=1, le=100)
     confidence: int = Field(None, description="", ge=0)
-
 
 class TargetUeId(BaseModel):
     """ Represents a UE mobility information."""
@@ -206,7 +376,6 @@ class TargetUeId(BaseModel):
     duration: int = Field(None, description="", ge=0)
     durationVariance: Float
     locInfo: List[UeLocationInfo] = Field(None, description="", min_items=1)
-
 
 class TargetUeId(BaseModel):
     """Represents the target UE(s) information."""
@@ -258,13 +427,11 @@ class AnalyticsEventFilterSubsc(BaseModel):
     maxNumOfTopAppDl: int = Field(None, description="", ge=0)
     visitedLocAreas: List[LocationArea5G] = Field(None, description="", min_items=1)
 
-
 class AnalyticsEventNotif(BaseModel):
     """Represents a subscribed analytics event."""
     analyEvent: AnalyticsEvent
     analyEventFilter: AnalyticsEventFilterSubsc
     tgtUe: TargetUeId
-
 
 class AnalyticsEventNotif(BaseModel):
     """Represents an analytics event to be reported."""
@@ -294,7 +461,6 @@ class AnalyticsEventNotification(BaseModel):
     """Represents an analytics event(s) notification."""
     notifId: str
     analyEventNotifs: List[AnalyticsEventNotif] = Field(None, description="", min_items=1)
-
 
 class AnalyticsExposureSubscCreate(BaseModel):
     """Represents an analytics exposure subscription."""
