@@ -2,8 +2,69 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field, IPvAnyAddress, AnyHttpUrl, constr
 from enum import Enum
-from .commonData import Snssai, TimeWindow, FlowInfo, Ecgi, Ncgi, GlobalRanNodeId, Tai
+from .commonData import Snssai, TimeWindow, FlowInfo, Ecgi, Ncgi, GlobalRanNodeId, Tai, UserLocation, RatType, QosResourceType, AnalyticsSubset, PartitioningCriteria, NotificationFlag, WebsockNotifConfig
 from .cpParameterProvisioning import ScheduledCommunicationTime
+
+############### TS 29.517 Types ###############
+
+class AddrFqdn(BaseModel):
+    """IP address and/or FQDN."""
+    ipAddr: IPvAnyAddress
+    fqdn: str = Field(None, description="Indicates an FQDN.")
+
+class SvcExperience(BaseModel):
+    """Contains a mean opinion score with the customized range. """
+    mos: float
+    upperRange: float
+    lowerRange: float
+
+###############################################
+
+############### TS 29.508 Types ###############
+
+class UpfInformation(BaseModel):
+    """Represents the ID/address/FQDN of the UPF."""
+    upfId: str
+    upfAddr: AddrFqdn
+
+class NotificationMethod(str, Enum):
+    periodic = "PERIODIC" 
+    oneTime = "ONE_TIME" 
+    onEventDetection = "ON_EVENT_DETECTION" 
+
+###############################################
+
+############### TS 29.523 Types ###############
+
+class ReportingInformation(BaseModel):
+    """Represents the type of reporting that the subscription requires."""
+    immRep: bool
+    notifMethod: NotificationMethod
+    maxReportNbr: int = Field(None, description="", ge=0)
+    monDur: datetime
+    repPeriod: int = Field(None, description="", ge=0)
+    sampRatio: int = Field(None, description="Expressed in percent.", ge=1, le=100)
+    partitionCriteria: List[PartitioningCriteria] = Field(None, description="",min_items=1)
+    grpRepTime: int = Field(None, description="", ge=0)
+    notifFlag: NotificationFlag
+
+###############################################
+
+
+############### TS 29.503 Types ###############
+
+class SuggestedPacketNumDl(BaseModel):
+    suggestedPacketNumDl: int = Field(None, description="", ge=1)
+    validityTime: datetime
+
+class ExpectedUeBehaviourData(BaseModel):
+    """IP address and/or FQDN."""
+    #TODO: should be a map
+    suggestedPacketNumDlList: List[SuggestedPacketNumDl]
+    threeGppChargingCharacteristics: str
+    supportedFeatures:  constr(regex=r'^[A-Fa-f0-9]*$')
+
+###############################################
 
 ############### TS 29.554 Types ###############
 
@@ -14,7 +75,6 @@ class NetworkAreaInfo(BaseModel):
     gRanNodeIds: List[GlobalRanNodeId] = Field(None, description="Contains a list of NG RAN nodes.", min_items=1)
     tais: List[Tai] = Field(None, description="Contains a list of tracking area identities.", min_items=1)
     
-
 ###############################################
 
 ############### TS 29.512 Types ###############
@@ -87,6 +147,65 @@ class TimeUnit(str, Enum):
     hour = "HOUR" 
     day = "DAY" 
 
+class DispersionType(str, Enum):
+    dvda = "DVDA" 
+    tda = "TDA" 
+    dvdaAndTda = "DVDA_AND_TDA" 
+
+class ServiceExperienceType(str, Enum):
+    voice = "VOICE" 
+    video = "VIDEO" 
+    other = "OTHER" 
+
+class MatchingDirection(str, Enum):
+    ascending = "ASCENDING" 
+    descending = "DESCENDING" 
+    crossed = "CROSSED" 
+
+class DispersionOrderingCriterion(str, Enum):
+    timeSlotStart = "TIME_SLOT_START" 
+    dispersion = "DISPERSION" 
+    classification = "CLASSIFICATION" 
+    ranking = "RANKING" 
+    percentileRanking = "PERCENTILE_RANKING"
+
+class ExpectedAnalyticsType(str, Enum):
+    mobility = "MOBILITY" 
+    commun = "COMMUN" 
+    mobilityAndCommun = "MOBILITY_AND_COMMUN"
+
+class DnPerfOrderingCriterion(str, Enum):
+    avgTrafficRate = "AVERAGE_TRAFFIC_RATE" 
+    macTrafficRate = "MAXIMUM_TRAFFIC_RATE" 
+    avgPacketDelay = "AVERAGE_PACKET_DELAY" 
+    maxPacketDelay = "MAXIMUM_PACKET_DELAY" 
+    avgPacketLossRate = "AVERAGE_PACKET_LOSS_RATE"
+
+class Accuracy(str, Enum):
+    low = "LOW" 
+    high = "HIGH"
+
+class AnalyticsMetadata(str, Enum):
+    numOfSamples = "NUM_OF_SAMPLES" 
+    dataWindow = "DATA_WINDOW" 
+    dataStatProps = "DATA_STAT_PROPS" 
+    strategy = "STRATEGY" 
+    accuracy = "ACCURACY"
+
+class DatasetStatisticalProperty(str, Enum):
+    uniformDistData = "UNIFORM_DIST_DATA" 
+    noOutliers = "NO_OUTLIERS"
+
+class OutputStrategy(str, Enum):
+    binary = "BINARY" 
+    gradient = "GRADIENT"
+
+class NwdafFailureCode(str, Enum):
+    unavailableData = "UNAVAILABLE_DATA" 
+    bothStatPredNotAllowed = "BOTH_STAT_PRED_NOT_ALLOWED"
+    unsatisfiedRequestedAnalyticsTime = "UNSATISFIED_REQUESTED_ANALYTICS_TIME" 
+    other = "OTHER"
+
 class RetainabilityThreshold(BaseModel):
     """Represents a QoS flow retainability threshold."""
     relFlowNum: int = Field(None, description="", ge=0)
@@ -138,7 +257,6 @@ class CircumstanceDescription(BaseModel):
 
 class AdditionalMeasurement(BaseModel):
     """Represents additional measurement information."""
-    #TODO: 29.554 NetworkAreaInfo
     unexpLoc: NetworkAreaInfo
     unexpFlowTeps: List[IpEthFlowDescription] = Field(None, description="", min_items=1)
     unexpWakes: List[datetime] = Field(None, description="", min_items=1)
@@ -195,7 +313,7 @@ class DispersionCollection(BaseModel):
     """Dispersion collection per UE location or per slice."""
     ueLoc: UserLocation
     snssai: Snssai
-    supis: List[Supi] = Field(None, description="", min_items=1)
+    supis: List[constr(regex=r'^(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+|.+)$')] = Field(None, description="", min_items=1)
     gpsis: List[constr(regex=r'^(msisdn-[0-9]{5,15}|extid-.+@.+|.+)$')] = Field(None, description="", min_items=1)
     appVolumes: List[ApplicationVolume] = Field(None, description="", min_items=1)
     disperAmount: int = Field(None, description="", ge=0)
@@ -212,6 +330,142 @@ class DispersionInfo(BaseModel):
     tsDuration: int = Field(None, description="", ge=0)
     disperCollects: List[DispersionCollection] = Field(None, description="", min_items=1)
     disperType = DispersionType
+
+class PerfData(BaseModel):
+    """Represents DN performance data."""
+    avgTrafficRate: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
+    maxTrafficRate: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
+    avePacketDelay: int = Field(None, description="Expressed in milliseconds.", ge=1)
+    maxPacketDelay: int = Field(None, description="Expressed in milliseconds.", ge=1)
+    avgPacketLossRate: int = Field(None, description="Expressed in tenth of percent.", ge=0, le=1000)
+    
+
+class DnPerf(BaseModel):
+    """ Represents DN performance for the application."""
+    appServerInsAddr: AddrFqdn
+    upfInfo: UpfInformation
+    dnai: str = Field(None, description="DNAI (Data network access identifier), see clause 5.6.7 of 3GPP TS 23.501.")
+    perfData: PerfData
+    spatialValidCon: NetworkAreaInfo
+    temporalValidCon: TimeWindow
+
+class DnPerfInfo(BaseModel):
+    """Represents DN performance information."""
+    appId: str = Field(None, description="String providing an application identifier.")
+    dnn: Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
+    snssai: Snssai
+    dnPerf: List[DnPerf] = Field(None, description="", min_items=1)
+    confidence: int = Field(None, description="", ge=0)
+
+
+class LocationInfo(BaseModel):
+    """Represents UE location information."""
+    loc: UserLocation
+    ratio: int = Field(None, description="Expressed in percent.", ge=1, le=100)
+    confidence: int = Field(None, description="", ge=0)
+
+class RatFreqInformation(BaseModel):
+    """Represents the RAT type and/or Frequency information."""
+    allFreq: Optional[bool] = Field(False, description="Set to true to indicate to handle all the frequencies the NWDAF received, otherwise set to false or omit. The allFreq attribute and the freq attribute are mutually exclusive.")
+    allRat: Optional[bool] = Field(False, description="Set to true to indicate to handle all the RAT Types the NWDAF received, otherwise set to false or omit. The allRat attribute and the ratType attribute are mutually exclusive. ")
+    freq: Optional[int] = Field(None, description="", ge=0, le=3279165)
+    ratType: Optional[RatType]
+    svcExpThreshold: ThresholdLevel
+    matchingDir: MatchingDirection
+
+class ServiceExperienceInfo(BaseModel):
+    """ Represents service experience information."""
+    svcExprc: SvcExperience
+    svcExprcVariance: float
+    supis: List[constr(regex=r'^(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+|.+)$')] = Field(None, description="", min_items=1)
+    snssai: Snssai
+    appId: str = Field("", description="String providing an application identifier.")
+    srvExpcType: ServiceExperienceType
+    ueLocs: List[LocationInfo] = Field(None, description="", min_items=1)
+    upfInfo: UpfInformation
+    dnai: str = Field(None, description="DNAI (Data network access identifier), see clause 5.6.7 of 3GPP TS 23.501.")
+    appServerInst: AddrFqdn
+    confidence: int = Field(None, description="", ge=0)
+    dnn: Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
+    networkArea: NetworkAreaInfo
+    nsiId: str = Field(None, description="Contains the Identifier of the selected Network Slice instance.")
+    ratio: int = Field(None, description="Expressed in percent.", ge=1, le=100)
+    ratFreq: RatFreqInformation
+
+class ClassCriterion(BaseModel):
+    """Indicates the dispersion class criterion for fixed, camper and/or traveller UE, and/or the top-heavy UE dispersion class criterion."""
+    disperClass: DispersionClass
+    classThreshold: int = Field(None, description="Expressed in percent.", ge=1, le=100)
+    thresMatch: MatchingDirection
+
+class RankingCriterion(BaseModel):
+    """ Indicates the usage ranking criterion between the high, medium and low usage UE."""
+    highBase: int = Field(None, description="Expressed in percent.", ge=1, le=100)
+    lowBase: int = Field(None, description="Expressed in percent.", ge=1, le=100)
+
+class DispersionRequirement(BaseModel):
+    """Represents the dispersion analytics requirements."""
+    disperType: DispersionType
+    classCriters: List[ClassCriterion] = Field(None, description="", min_items=1)
+    rankCriters: List[RankingCriterion] = Field(None, description="", min_items=1)
+    dispOrderCriter: DispersionOrderingCriterion
+    order: MatchingDirection
+
+class NsiIdInfo(BaseModel):
+    """Represents the S-NSSAI and the optionally associated Network Slice Instance(s)."""
+    snssai: Snssai
+    nsiIds: List[str] = Field(None, description="", min_items=1)
+
+class QosRequirement(BaseModel):
+    """Represents the QoS requirements."""
+    fiveqi: int = Field(None, description="", ge=0, le=255)
+    gfbrUl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
+    gfbrDl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
+    resType: QosResourceType
+    pdb: int = Field(None, description="Expressed in milliseconds.", ge=1)
+    per: constr(regex=r'^([0-9]E-[0-9])$')
+
+class DnPerformanceReq(BaseModel):
+    """ Represents other DN performance analytics requirements."""
+    dnPerfOrderCriter: DnPerfOrderingCriterion
+    order: MatchingDirection
+    reportThresholds: List[ThresholdLevel] = Field(None, description="", min_items=1)
+
+class BwRequirement(BaseModel):
+    """Represents bandwidth requirements."""
+    appId: str = Field(None, description="String providing an application identifier.")
+    marBwDl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
+    marBwUl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
+    mirBwDl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
+    mirBwUl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
+
+class AnalyticsMetadataIndication(BaseModel):
+    """Contains analytics metadata information requested to be used during analytics generation."""
+    dataWindow: TimeWindow
+    dataStatProps: List[DatasetStatisticalProperty] = Field(None, description="", min_items=1)
+    strategy: OutputStrategy
+    aggrNwdafIds: List[str] = Field(None, description="", min_items=1)
+
+
+class EventReportingRequirement(BaseModel):
+    """Represents the type of reporting that the subscription requires."""
+    accuracy: Accuracy
+    accPerSubset: List[Accuracy] = Field(None, description="", min_items=1)
+    startTs: datetime
+    endTs: datetime
+    offsetPeriod: int
+    sampRatio: int = Field(None, description="Expressed in percent.", ge=1, le=100)
+    maxObjectNbr: int = Field(None, description="", ge=0)
+    maxSupiNbr: int = Field(None, description="", ge=0)
+    timeAnaNeeded: datetime
+    anaMeta: List[AnalyticsMetadata] = Field(None, description="", min_items=1)
+    anaMetaInd: AnalyticsMetadataIndication
+
+class NetworkPerfRequirement(BaseModel):
+    """Represents a network performance requirement."""
+    nwPerfType: NetworkPerfType
+    relativeRatio: int = Field(None, description="Expressed in percent.", ge=1, le=100)
+    absoluteNum: int = Field(None, description="", ge=0)
 
 ###############################################
 
@@ -304,130 +558,96 @@ class AnalyticsData(BaseModel):
     expiry: datetime
     timeStampGen: datetime
     ueMobilityInfos: List[UeMobilityExposure] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 UeCommunication
     ueCommInfos: List[UeCommunication] = Field(None, description="", min_items=1)
     nwPerfInfos: List[NetworkPerfExposure] = Field(None, description="", min_items=1)
     abnormalInfos: List[AbnormalExposure] = Field(None, description="", min_items=1)
     congestInfos: List[CongestInfo] = Field(None, description="", min_items=1)
     qosSustainInfos: List[QosSustainabilityExposure] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 DispersionInfo
     disperInfos: List[DispersionInfo] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 DnPerfInfo
     dnPerfInfos: List[DnPerfInfo] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 ServiceExperienceInfo
     svcExps: List[ServiceExperienceInfo] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 DispersionRequirement
     disperReqs: List[DispersionRequirement] = Field(None, description="", min_items=1)
-    suppFeat: SupportedFeatures
+    suppFeat: constr(regex=r'^[A-Fa-f0-9]*$')
 
 class AnalyticsEventFilter(BaseModel):
     """ Represents analytics event filter information."""
     # locArea: LocationArea5G
     dnn: Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
-    dnais: List[Dnai] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 NetworkPerfType
+    dnais: List[str] = Field(None, description="DNAI (Data network access identifier), see clause 5.6.7 of 3GPP TS 23.501.", min_items=1)
     nwPerfTypes: List[NetworkPerfType] = Field(None, description="", min_items=1)
-    appIds: List[ApplicationId] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 ExceptionId
+    appIds: List[str] = Field(None, description="String providing an application identifier.", min_items=1)
     appIds: List[ExceptionId] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 ExpectedAnalyticsType
     exptAnaType: ExpectedAnalyticsType
-    #TODO: ts 29.503 ExpectedUeBehaviourData
     exptUeBehav: ExpectedUeBehaviourData
     snssai: Snssai
-    #TODO: ts 29.520 NsiIdInfo
     nsiIdInfos: List[NsiIdInfo] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 QosRequirement
     qosReq: QosRequirement
-    #TODO: ts 29.520 AnalyticsSubset
     listOfAnaSubsets: List[AnalyticsSubset] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 DnPerformanceReq
     dnPerfReqs: List[DnPerformanceReq] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 BwRequirement
     bwRequs: List[BwRequirement] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 RatFreqInformation
     ratFreqs: List[RatFreqInformation] = Field(None, description="", min_items=1)    
-    #TODO: ts 29.520 AddrFqdn
     appServerAddrs: List[AddrFqdn] = Field(None, description="", min_items=1)
     maxNumOfTopAppUl: int = Field(None, description="", ge=0)
     maxNumOfTopAppDl: int = Field(None, description="", ge=0)
-    visitedLocAreas: List[LocationArea5G] = Field(None, description="", min_items=1)
+    # visitedLocAreas: List[LocationArea5G] = Field(None, description="", min_items=1)
+
+class TargetUeId(BaseModel):
+    """Represents the target UE(s) information."""
+    anyUeInd: bool
+    gpsi: constr(regex=r'^(msisdn-[0-9]{5,15}|extid-.+@.+|.+)$')
+    exterGroupId: str = Field("Group1@domain.com", description="")
 
 class AnalyticsRequest(BaseModel):
     """Represents the parameters to request to retrieve analytics information."""
     analyEvent: AnalyticsEvent
     analyEventFilter: AnalyticsEventFilter
-    #TODO: ts 29.520 EventReportingRequirement
     analyRep: EventReportingRequirement
     tgtUe: TargetUeId
-    suppFeat: SupportedFeatures
+    suppFeat: constr(regex=r'^[A-Fa-f0-9]*$')
 
 class UeLocationInfo(BaseModel):
     """Represents a UE location information."""
-    loc: LocationArea5G
+    # loc: LocationArea5G
     ratio: int = Field(None, description="Expressed in percent", ge=1, le=100)
     confidence: int = Field(None, description="", ge=0)
 
-class TargetUeId(BaseModel):
+class UeMobilityExposure(BaseModel):
     """ Represents a UE mobility information."""
     ts: datetime
-    #TODO: ts 29.122 ScheduledCommunicationTime
     recurringTime: ScheduledCommunicationTime
     duration: int = Field(None, description="", ge=0)
-    durationVariance: Float
+    durationVariance: float
     locInfo: List[UeLocationInfo] = Field(None, description="", min_items=1)
-
-class TargetUeId(BaseModel):
-    """Represents the target UE(s) information."""
-    anyUeInd: bool
-    gpsi: gpsi
-    exterGroupId: str = Field("Group1@domain.com", description="")
 
 class AnalyticsEventFilterSubsc(BaseModel):
     """Represents an analytics event filter."""
-    #TODO: ts 29.520 NetworkPerfRequirement
     nwPerfReqs: List[NetworkPerfRequirement] = Field(None, description="", min_items=1)
-    locArea: LocationArea5G
-    appIds: List[ApplicationId] = Field(None, description="", min_items=1)
+    # locArea: LocationArea5G
+    appIds: List[str] = Field(None, description="String providing an application identifier.")
     dnn: Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
-    dnais: List[Dnai] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 Exception
-    # excepRequs: List[Exception] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 ExpectedAnalyticsType
+    dnais: List[str] = Field(None, description="DNAI (Data network access identifier), see clause 5.6.7 of 3GPP TS 23.501.", min_items=1)
+    excepRequs: List[Exception] = Field(None, description="", min_items=1)
     exptAnaType: ExpectedAnalyticsType
-    #TODO: ts 29.503 ExpectedUeBehaviourData
     exptUeBehav: ExpectedUeBehaviourData
-    #TODO: ts 29.520 MatchingDirection
     matchingDir: MatchingDirection
-    #TODO: ts 29.520 ThresholdLevel
     reptThlds: List[ThresholdLevel] = Field(None, description="", min_items=1)
     snssai: Snssai
-    #TODO: ts 29.520 NsiIdInfo
     nsiIdInfos: List[NsiIdInfo] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 QosRequirement
     qosReq: QosRequirement
-    #TODO: ts 29.520 RetainabilityThreshold
     qosFlowRetThds: List[RetainabilityThreshold] = Field(None, description="", min_items=1)
-    ranUeThrouThds: List[BitRate] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 DispersionRequirement
+    ranUeThrouThds: List[constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')] = Field(None, description="", min_items=1)
     disperReqs: List[DispersionRequirement] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 AnalyticsSubset
     listOfAnaSubsets: List[AnalyticsSubset] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 DnPerformanceReq
     dnPerfReqs: List[DnPerformanceReq] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 BwRequirement
     bwRequs: List[BwRequirement] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 RatFreqInformation
     ratFreqs: List[RatFreqInformation] = Field(None, description="", min_items=1)
-    #TODO: ts 29.517 AddrFqdn
     appServerAddrs: List[AddrFqdn] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 AddrFqdn
     extraReportReq: List[EventReportingRequirement] = Field(None, description="", min_items=1)
     maxNumOfTopAppUl: int = Field(None, description="", ge=0)
     maxNumOfTopAppDl: int = Field(None, description="", ge=0)
-    visitedLocAreas: List[LocationArea5G] = Field(None, description="", min_items=1)
+    # visitedLocAreas: List[LocationArea5G] = Field(None, description="", min_items=1)
 
-class AnalyticsEventNotif(BaseModel):
+class AnalyticsEventSubsc(BaseModel):
     """Represents a subscribed analytics event."""
     analyEvent: AnalyticsEvent
     analyEventFilter: AnalyticsEventFilterSubsc
@@ -438,21 +658,16 @@ class AnalyticsEventNotif(BaseModel):
     analyEvent: AnalyticsEvent
     expiry: datetime
     timeStamp: datetime
-    #TODO: ts 29.520 NwdafFailureCode
     failNotifyCode: NwdafFailureCode
     rvWaitTime: int = Field(None, description="", ge=0)
     ueMobilityInfos: List[UeMobilityExposure] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 UeCommunication
     ueCommInfos: List[UeCommunication] = Field(None, description="", min_items=1)
     abnormalInfos: List[AbnormalExposure] = Field(None, description="", min_items=1)
     congestInfos: List[CongestInfo] = Field(None, description="", min_items=1)
     nwPerfInfos: List[NetworkPerfExposure] = Field(None, description="", min_items=1)
     qosSustainInfos: List[QosSustainabilityExposure] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 DispersionInfo
     disperInfos: List[DispersionInfo] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 DnPerfInfo
     dnPerfInfos: List[DnPerfInfo] = Field(None, description="", min_items=1)
-    #TODO: ts 29.520 ServiceExperienceInfo
     svcExps: List[ServiceExperienceInfo] = Field(None, description="", min_items=1)
     start: datetime
     timeStampGen: datetime
@@ -465,12 +680,12 @@ class AnalyticsEventNotification(BaseModel):
 class AnalyticsExposureSubscCreate(BaseModel):
     """Represents an analytics exposure subscription."""
     analyEventsSubs: List[AnalyticsEventSubsc] = Field(None, description="", min_items=1)
-    analyRepInfo:ReportingInformation
-    notifUri: Uri
+    analyRepInfo: ReportingInformation
+    notifUri: str
     notifId: str
     eventNotifis: List[AnalyticsEventNotif] = Field(None, description="", min_items=1)
     failEventReports: List[AnalyticsFailureEventInfo] = Field(None, description="", min_items=1)
-    suppFeat: SupportedFeatures
+    suppFeat:  constr(regex=r'^[A-Fa-f0-9]*$')
     requestTestNotification: bool = Field(None, description="Set to true by the AF to request the NEF to send a test notification as defined in clause 5.2.5.3 of 3GPP TS 29.122. Set to false or omitted otherwise.")
     websockNotifConfig: WebsockNotifConfig
 

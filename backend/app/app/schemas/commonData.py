@@ -7,13 +7,13 @@ from enum import Enum
 #Defined with other classes, without making a new class type
 #Link - AnyHttpUrl
 #DateTime - datetime
-#Dnn - str -> example: province1.mnc01.mcc202.gprs
+#Dnn - Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
 #ExternalId - str -> example: 123456789@domain.com
 #Msisdn - str -> example: 918369110173
 #ExternalGroupId - str -> example: Group1@domain.com
 #IpAddr - IPvAnyAddress
 #MacAddr48 - constr(regex=r'^([0-9a-fA-F]{2})((-[0-9a-fA-F]{2}){5})$')
-#DurationSec - int -> ge = 0
+#DurationSec - int = Field(None, description="", ge=0)
 #DayOfWeek ???
 #TimeOfDay ???
 #DurationSecRm ???
@@ -21,18 +21,18 @@ from enum import Enum
 
 #TODO:
 #29.571
-#SupportedFeatures
-#Dnai
+#SupportedFeatures - constr(regex=r'^[A-Fa-f0-9]*$')
+#Dnai - str --- DNAI (Data network access identifier), see clause 5.6.7 of 3GPP TS 23.501.
 #TypeAllocationCode
-#Gpsi ---  '^(msisdn-[0-9]{5,15}|extid-.+@.+|.+)$'
-#Uri
-#ApplicationId - str --- String providing an application identifier. 
+#Gpsi ---  constr(regex=r'^(msisdn-[0-9]{5,15}|extid-.+@.+|.+)$')
+#Uri - str
+#ApplicationId - str = Field(None, description="String providing an application identifier.")
 #BitRate - constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
-#Uinteger - int -> ge = 0
+#Uinteger - int = Field(None, description="", ge=0)
 #Float - float
-#SamplingRatio - int -> ge = 1, le = 100 --- expressed in percent
-#PacketDelBudget - int -> ge = 1 --- expressed in milliseconds.
-#PacketLossRate - int -> ge = 0, le = 1000 --- expressed in tenth of percent
+#SamplingRatio - int = Field(None, description="Expressed in percent.", ge=1, le=100)
+#PacketDelBudget - int = Field(None, description="Expressed in milliseconds.", ge=1)
+#PacketLossRate - int = Field(None, description="Expressed in tenth of percent.", ge=0, le=1000)
 #Ecgi
 #Ncgi
 #GlobalRanNodeId
@@ -48,8 +48,15 @@ from enum import Enum
 #Tac - constr(regex=r'(^[A-Fa-f0-9]{4}$)|(^[A-Fa-f0-9]{6}$)')
 #PduSessionId - int -> ge = 0, le = 255
 #UserLocation
-#Supi
-
+#Supi - constr(regex=r'^(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+|.+)$')
+#Bytes - constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
+# HfcNodeId ---> str = Field(None, description="REpresents the HFC Node Identifer received over NGAP.", max_digits=6)
+# Gli - Bytes
+# Gci: str = Field(None, description="Global Cable Identifier uniquely identifying the connection between the 5G-CRG or FN-CRG to the 5GS. See clause 28.15.4 of 3GPP TS 23.003. This shall be encoded as a string per clause 28.15.4 of 3GPP TS 23.003, and compliant with the syntax specified in clause 2.2 of IETF RFC 7542 for the username part of a NAI. The GCI value is specified in CableLabs WR-TR-5WWC-ARCH.")
+#ArfcnValueNR - int = Field(None, description="", ge=0, le=3279165)
+#RatType
+#5Qi - int = Field(None, description="", ge=0, le=255)
+#PacketErrRate - constr(regex=r'^([0-9]E-[0-9])$')
 
 #TODO:
 #29.122
@@ -70,6 +77,7 @@ class FlowInfo(BaseModel):
     flowId: int = Field(None, description="Indicates the IP flow identifier.")
     flowDescriptions: List[str] = Field(None, description="Indicates the packet filters of the IP flow. Refer to clause 5.3.8 of 3GPP TS 29.214 for encoding. It shall contain UL and/or DL IP flow description.", min_items=1, max_items=2)
 
+#TS 29.122
 class TimeWindow(BaseModel):
     """Represents a time window identified by a start time and a stop time."""
     startTime: datetime
@@ -159,13 +167,100 @@ class NrLocation(BaseModel):
     globalGnbId: GlobalRanNodeId
 
 #TS 29.571
-#TODO: doing
-class N3gaLocation(BaseModel):
-    """Contains the Non-3GPP access user location.""" 
-    n3gppTai: Tai
-    n3IwfId: constr(regex=r'^[A-Fa-f0-9]+$')
-    
+class CellGlobalId(BaseModel):
+    """Contains a Cell Global Identification as defined in 3GPP TS 23.003, clause 4.3.1.""" 
+    plmnId: PlmnId
+    lac: constr(regex=r'^[A-Fa-f0-9]{4}$')
+    cellId: constr(regex=r'^[A-Fa-f0-9]{4}$')
 
+#TS 29.571
+class ServiceAreaId(BaseModel):
+    """Contains a Service Area Identifier as defined in 3GPP TS 23.003, clause 12.5.""" 
+    plmnId: PlmnId
+    lac: constr(regex=r'^[A-Fa-f0-9]{4}$') = Field(None, description="Location Area Code.")
+    sac: constr(regex=r'^[A-Fa-f0-9]{4}$') = Field(None, description="Service Area Code.")
+
+
+#TS 29.571
+class LocationAreaId(BaseModel):
+    """Contains a Location area identification as defined in 3GPP TS 23.003, clause 4.1.""" 
+    plmnId: PlmnId
+    lac: constr(regex=r'^[A-Fa-f0-9]{4}$') = Field(None, description="Location Area Code.")
+
+#TS 29.571
+class RoutingAreaId(BaseModel):
+    """Contains a Routing Area Identification as defined in 3GPP TS 23.003, clause 4.2.""" 
+    plmnId: PlmnId
+    lac: constr(regex=r'^[A-Fa-f0-9]{4}$') = Field(None, description="Location Area Code.")
+    rac: constr(regex=r'^[A-Fa-f0-9]{2}$') = Field(None, description="Routing Area Code.")
+
+#TS 29.571
+class UtraLocation(BaseModel):
+    """Exactly one of cgi, sai or lai shall be present.""" 
+    cgi: CellGlobalId
+    sai: ServiceAreaId
+    lai: LocationAreaId
+    rai: RoutingAreaId
+    ageOfLocationInformation: int = Field(None, description="", ge=0, le=32767)
+    ueLocationTimestamp: datetime
+    geographicalInformation: constr(regex=r'^[0-9A-F]{16}$')
+    geodeticInformation: constr(regex=r'^[0-9A-F]{20}$')
+
+#TS 29.571
+class TransportProtocol(str, Enum):
+    udp = "UDP" 
+    tcp = "TCP" 
+
+
+#TS 29.571
+class LineType(str, Enum):
+    dsl = "DSL" 
+    pon = "PON" 
+
+#TS 29.571
+class TnapId(BaseModel):
+    """Contain the TNAP Identifier see clause5.6.2 of 3GPP TS 23.501.""" 
+    ssId: str = Field(None, description="This IE shall be present if the UE is accessing the 5GC via a trusted WLAN access network.When present, it shall contain the SSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012. ")
+    bssId: Optional[str] = Field(None, description="When present, it shall contain the BSSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012.")
+    civicAddress: constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
+
+#TS 29.571
+class TwapId(BaseModel):
+    """Contain the TWAP Identifier as defined in clause 4.2.8.5.3 of 3GPP TS 23.501 or the WLAN location information as defined in clause 4.5.7.2.8 of 3GPP TS 23.402.""" 
+    ssId: str = Field(None, description="This IE shall contain the SSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012. ")
+    bssId: Optional[str] = Field(None, description="When present, it shall contain the BSSID of the access point to which the UE is attached, for trusted WLAN access, see IEEE Std 802.11-2012.")
+    civicAddress: constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
+
+# #TS 29.571
+# class NThreegaLocation(BaseModel):
+#     """Contains the Non-3GPP access user location.""" 
+#     n3gppTai: Tai
+#     n3IwfId: constr(regex=r'^[A-Fa-f0-9]+$')
+#     ueIpv4Addr: AnyHttpUrl = Field(None, description="String identifying an Ipv4 address")  
+#     ueIpv6Addr: AnyHttpUrl = Field(None, description="String identifying an Ipv6 address")  
+#     portNumber: int = Field(None, description="", ge=0)
+#     protocol: TransportProtocol
+#     tnapId: TnapId
+#     twapId: TwapId
+#     hfcNodeId: str = Field(None, description="REpresents the HFC Node Identifer received over NGAP.", max_digits=6)
+#     gli: constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
+#     w5gbanLineType: LineType
+#     gci: str = Field(None, description="Global Cable Identifier uniquely identifying the connection between the 5G-CRG or FN-CRG to the 5GS. See clause 28.15.4 of 3GPP TS 23.003. This shall be encoded as a string per clause 28.15.4 of 3GPP TS 23.003, and compliant with the syntax specified in clause 2.2 of IETF RFC 7542 for the username part of a NAI. The GCI value is specified in CableLabs WR-TR-5WWC-ARCH.")
+
+#TS 29.571
+class GeraLocation(BaseModel):
+    """Contains the Non-3GPP access user location.""" 
+    locationNumber: str = Field(None, description="Location number within the PLMN. See 3GPP TS 23.003, clause 4.5. ")
+    cgi: CellGlobalId
+    rai: RoutingAreaId
+    sai: ServiceAreaId
+    lai: LocationAreaId
+    vlrNumber: str = Field(None, description="VLR number. See 3GPP TS 23.003 clause 5.1.")
+    mscNumber: str = Field(None, description="MSC number. See 3GPP TS 23.003 clause 5.1. ")
+    ageOfLocationInformation: int = Field(None, description="", ge=0, le=32767)
+    ueLocationTimestamp: datetime
+    geographicalInformation: constr(regex=r'^[0-9A-F]{16}$')
+    geodeticInformation: constr(regex=r'^[0-9A-F]{20}$')
 
 #TS 29.571
 class UserLocation(BaseModel):
@@ -173,11 +268,112 @@ class UserLocation(BaseModel):
  of them may be present."""
     eutraLocation: EutraLocation
     nrLocation: NrLocation
-    n3gaLocation: N3gaLocation
+    # n3gaLocation: NThreegaLocation
     utraLocation: UtraLocation
     geraLocation: GeraLocation
-
 
 #TS 29.122
 class DayOfWeek(BaseModel):
     day: int = Field(None, description="", ge=1, le=7)
+
+
+#TS 29.571
+class RatType(str, Enum):
+    """Indicates the radio access used."""
+    nr = "NR" 
+    eutra = "EUTRA" 
+    wlan = "WLAN" 
+    virtual = "VIRTUAL" 
+    nbiot = "NBIOT" 
+    wireline = "WIRELINE" 
+    wirelineCable = "WIRELINE_CABLE" 
+    wirelineBbf = "WIRELINE_BBF" 
+    lteM = "LTE-M" 
+    nrU = "NR_U" 
+    eutraU = "EUTRA_U" 
+    trustedN3ga = "TRUSTED_N3GA" 
+    trustedWlan = "TRUSTED_WLAN" 
+    utra = "UTRA" 
+    gera = "GERA" 
+    nrLeo = "NR_LEO" 
+    nrMeo = "NR_MEO" 
+    nrGeo = "NR_GEO" 
+    nrOtherSat = "NR_OTHER_SAT" 
+    nrRedcap= "NR_REDCAP" 
+
+#TS 29.571
+class QosResourceType(str, Enum):
+    nonGbr = "NON_GBR" 
+    nonCriticalGbr = "NON_CRITICAL_GBR" 
+    criticalGbr = "CRITICAL_GBR" 
+
+#TS 29.571
+class AnalyticsSubset(str, Enum):
+    numOfUeReg = "NUM_OF_UE_REG" 
+    numOfPduSessEstbl = "NUM_OF_PDU_SESS_ESTBL" 
+    resUsage = "RES_USAGE" 
+    numOfExceedResUsageLoadLevelThr = "NUM_OF_EXCEED_RES_USAGE_LOAD_LEVEL_THR" 
+    periodOfExceedResUsageLoadLevelThr = "PERIOD_OF_EXCEED_RES_USAGE_LOAD_LEVEL_THR" 
+    exceedLoadLevelThrInd = "EXCEED_LOAD_LEVEL_THR_IND" 
+    listOfTopAppUl = "LIST_OF_TOP_APP_UL" 
+    listOfTopAppDl = "LIST_OF_TOP_APP_DL" 
+    nfStatus = "NF_STATUS" 
+    nfResourceUsage = "NF_RESOURCE_USAGE" 
+    nfLoad = "NF_LOAD" 
+    nfPeakLoad = "NF_PEAK_LOAD" 
+    nfLoadAvgInAoi = "NF_LOAD_AVG_IN_AOI" 
+    disperAmount = "DISPER_AMOUNT" 
+    disperClass = "DISPER_CLASS" 
+    ranking = "RANKING" 
+    percentileRanking = "PERCENTILE_RANKING" 
+    rssi = "RSSI" 
+    rtt = "RTT" 
+    trafficInfo = "TRAFFIC_INFO" 
+    numberOfUes = "NUMBER_OF_UES" 
+    appListForUeComm = "APP_LIST_FOR_UE_COMM" 
+    n4SessInactTimerForEuComm = "N4_SESS_INACT_TIMER_FOR_UE_COMM" 
+    avgTrafficRate = "AVG_TRAFFIC_RATE"
+    maxTrafficRate = "MAX_TRAFFIC_RATE" 
+    avgPacketDelay = "AVG_PACKET_DELAY" 
+    maxPacketDelay = "MAX_PACKET_DELAY" 
+    avgPacketLossRate = "AVG_PACKET_LOSS_RATE" 
+    ueLocation = "UE_LOCATION" 
+    listOfHighExpUe = "LIST_OF_HIGH_EXP_UE" 
+    listOfMediumExpUe = "LIST_OF_MEDIUM_EXP_UE" 
+    lsitOfLowExpUe = "LIST_OF_LOW_EXP_UE" 
+    avgUlPktDropRate = "AVG_UL_PKT_DROP_RATE" 
+    varUlPktDropRate = "VAR_UL_PKT_DROP_RATE" 
+    avgDlPktDropRate = "AVG_DL_PKT_DROP_RATE" 
+    varDlPktDropRate = "VAR_DL_PKT_DROP_RATE" 
+    avgUlPktDelay = "AVG_UL_PKT_DELAY" 
+    varUlPktDelay = "VAR_UL_PKT_DELAY" 
+    avgDlPktDelay = "AVG_DL_PKT_DELAY" 
+    varDlPktDelay = "VAR_DL_PKT_DELAY"
+
+#TS 29.571
+class PartitioningCriteria(str, Enum):
+    tac = "TAC" 
+    subPlmn = "SUBPLMN" 
+    geoArea = "GEOAREA"
+    snssai = "SNSSAI" 
+    dnn = "DNN"
+
+#TS 29.571
+class NotificationFlag(str, Enum):
+    activate = "ACTIVATE" 
+    deactivate = "DEACTIVATE" 
+    retrieval = "RETRIEVAL"
+
+#TS 29.122
+class WebsockNotifConfig(BaseModel):
+    """Represents the configuration information for the delivery of notifications over Websockets."""
+    websocketUri: AnyHttpUrl
+    requestWebsocketUri: bool = Field(None, description=" Set by the SCS/AS to indicate that the Websocket delivery is requested.")
+
+#TS 29.122
+#TODO: locationArea5g
+# class LocationArea5G(BaseModel):
+#     """Represents a user location area when the UE is attached to 5G. """
+#     geographicAreas: List[GeographicArea] = Field(None, description="Identifies a list of geographic area of the user where the UE is located.", min_items=0)
+#     civicAddresses: List[CivicAddress] = Field(None, description="Identifies a list of civic addresses of the user where the UE is located.", min_items=0)
+#     nwAreaInfo: NetworkAreaInfo
