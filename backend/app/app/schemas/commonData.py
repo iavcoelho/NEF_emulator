@@ -231,21 +231,21 @@ class TwapId(BaseModel):
     bssId: Optional[str] = Field(None, description="When present, it shall contain the BSSID of the access point to which the UE is attached, for trusted WLAN access, see IEEE Std 802.11-2012.")
     civicAddress: constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
 
-# #TS 29.571
-# class NThreegaLocation(BaseModel):
-#     """Contains the Non-3GPP access user location.""" 
-#     n3gppTai: Tai
-#     n3IwfId: constr(regex=r'^[A-Fa-f0-9]+$')
-#     ueIpv4Addr: AnyHttpUrl = Field(None, description="String identifying an Ipv4 address")  
-#     ueIpv6Addr: AnyHttpUrl = Field(None, description="String identifying an Ipv6 address")  
-#     portNumber: int = Field(None, description="", ge=0)
-#     protocol: TransportProtocol
-#     tnapId: TnapId
-#     twapId: TwapId
-#     hfcNodeId: str = Field(None, description="REpresents the HFC Node Identifer received over NGAP.", max_digits=6)
-#     gli: constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
-#     w5gbanLineType: LineType
-#     gci: str = Field(None, description="Global Cable Identifier uniquely identifying the connection between the 5G-CRG or FN-CRG to the 5GS. See clause 28.15.4 of 3GPP TS 23.003. This shall be encoded as a string per clause 28.15.4 of 3GPP TS 23.003, and compliant with the syntax specified in clause 2.2 of IETF RFC 7542 for the username part of a NAI. The GCI value is specified in CableLabs WR-TR-5WWC-ARCH.")
+#TS 29.571
+class NThreegaLocation(BaseModel):
+    """Contains the Non-3GPP access user location.""" 
+    n3gppTai: Tai
+    n3IwfId: constr(regex=r'^[A-Fa-f0-9]+$')
+    ueIpv4Addr: AnyHttpUrl = Field(None, description="String identifying an Ipv4 address")  
+    ueIpv6Addr: AnyHttpUrl = Field(None, description="String identifying an Ipv6 address")  
+    portNumber: int = Field(None, description="", ge=0)
+    protocol: TransportProtocol
+    tnapId: TnapId
+    twapId: TwapId
+    hfcNodeId: str = Field(None, description="REpresents the HFC Node Identifer received over NGAP.", max_length=6)
+    gli: constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
+    w5gbanLineType: LineType
+    gci: str = Field(None, description="Global Cable Identifier uniquely identifying the connection between the 5G-CRG or FN-CRG to the 5GS. See clause 28.15.4 of 3GPP TS 23.003. This shall be encoded as a string per clause 28.15.4 of 3GPP TS 23.003, and compliant with the syntax specified in clause 2.2 of IETF RFC 7542 for the username part of a NAI. The GCI value is specified in CableLabs WR-TR-5WWC-ARCH.")
 
 #TS 29.571
 class GeraLocation(BaseModel):

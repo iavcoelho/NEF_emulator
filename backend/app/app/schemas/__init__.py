@@ -17,4 +17,5 @@ from .pfdManagement import PfdManagement, PfdManagementCreate
 from .npConfiguration import NpConfiguration, NpConfigurationCreate, ConfigurationNotification
 from .racsProvisioning import RacsProvisioningData, RacsProvisioningDataCreate
 from .niddConfigurationTrigger import NiddConfigurationTrigger, NiddConfigurationTriggerReply
+from .analyticsExposure import AnalyticsExposureSubscCreate, AnalyticsEventSubsc, AnalyticsExposureSubsc, AnalyticsEventNotification
 from .utils import scenario
