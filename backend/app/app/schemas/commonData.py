@@ -2,6 +2,7 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field, IPvAnyAddress, AnyHttpUrl, constr
 from enum import Enum
+from .utils import ExtraBaseModel
 
 
 #Defined with other classes, without making a new class type
@@ -72,34 +73,34 @@ from enum import Enum
 #29.514
 #FlowDescription -> str --- defines a packet filter of an IP flow
 
-class FlowInfo(BaseModel):
+class FlowInfo(ExtraBaseModel):
     """Represents IP flow information."""
     flowId: int = Field(None, description="Indicates the IP flow identifier.")
     flowDescriptions: List[str] = Field(None, description="Indicates the packet filters of the IP flow. Refer to clause 5.3.8 of 3GPP TS 29.214 for encoding. It shall contain UL and/or DL IP flow description.", min_items=1, max_items=2)
 
 #TS 29.122
-class TimeWindow(BaseModel):
+class TimeWindow(ExtraBaseModel):
     """Represents a time window identified by a start time and a stop time."""
     startTime: datetime
     stopTime: datetime
 
-class Snssai(BaseModel):
+class Snssai(ExtraBaseModel):
     sst: int = Field(default=1, description="Unsigned integer representing the Slice/Service Type. Value 0 to 127 correspond to the standardized SST range. Value 128 to 255 correspond to the Operator-specific range.", ge=0, le=255)
     sd: Optional[constr(regex=r'^[0-9a-fA-F]{6}$')] = Field(default='000001', description="This value respresents the Slice Differentiator, in hexadecimal representation.")
 
-class UsageThreshold(BaseModel):
+class UsageThreshold(ExtraBaseModel):
     duration: int = Field(None, description="A period of time in units of seconds", ge=0)
     totalVolume: int = Field(None, description="A volume in units of bytes", ge=0)
     downlinkVolume: int = Field(None, description="A volume in units of bytes", ge=0)
     uplinkVolume: int = Field(None, description="A volume in units of bytes", ge=0)
 
 #TS 29.571
-class PlmnId(BaseModel):
+class PlmnId(ExtraBaseModel):
     mcc: int
     mnc: int
 
 #TS 29.571
-class Ecgi(BaseModel):
+class Ecgi(ExtraBaseModel):
     """Contains the ECGI (E-UTRAN Cell Global Identity), as described in 3GPP 23.003"""
     plmnId: PlmnId
     eutraCellId: constr(regex=r'^[A-Fa-f0-9]{7}$')
@@ -107,7 +108,7 @@ class Ecgi(BaseModel):
 
 
 #TS 29.571
-class Ncgi(BaseModel):
+class Ncgi(ExtraBaseModel):
     """Contains the NCGI (NR Cell Global Identity), as described in 3GPP 23.003"""
     plmnId: PlmnId
     nrCellId: constr(regex=r'^[A-Fa-f0-9]{9}$')
@@ -115,13 +116,13 @@ class Ncgi(BaseModel):
 
 
 #TS 29.571
-class GNbId(BaseModel):
+class GNbId(ExtraBaseModel):
     """Provides the G-NB identifier."""
     bitLength: int = Field(None, description="", ge=22, le=32)
     gNBValue: constr(regex=r'^[A-Fa-f0-9]{6,8}$')
 
 #TS 29.571
-class GlobalRanNodeId(BaseModel):
+class GlobalRanNodeId(ExtraBaseModel):
     """One of the six attributes n3IwfId, gNbIdm, ngeNbId, wagfId, tngfId, eNbId shall be present."""
     plmnId: PlmnId
     n3IwfId: Optional[constr(regex=r'^[A-Fa-f0-9]+$')]
@@ -133,14 +134,14 @@ class GlobalRanNodeId(BaseModel):
     eNbId: Optional[constr(regex=r'^(MacroeNB-[A-Fa-f0-9]{5}|LMacroeNB-[A-Fa-f0-9]{6}|SMacroeNB-[A-Fa-f0-9]{5}|HomeeNB-[A-Fa-f0-9]{7})$')]
 
 #TS 29.571
-class Tai(BaseModel):
+class Tai(ExtraBaseModel):
     """Contains the tracking area identity as described in 3GPP 23.003"""
     plmnId: PlmnId
     tac: constr(regex=r'(^[A-Fa-f0-9]{4}$)|(^[A-Fa-f0-9]{6}$)')
     nid: Optional[constr(regex=r'^[A-Fa-f0-9]{11}$')]
 
 #TS 29.571
-class EutraLocation(BaseModel):
+class EutraLocation(ExtraBaseModel):
     """Contains the E-UTRA user location.""" 
     tai: Tai
     ignoreTai: bool = Field(False)
@@ -154,7 +155,7 @@ class EutraLocation(BaseModel):
     globalENbId: GlobalRanNodeId
 
 #TS 29.571
-class NrLocation(BaseModel):
+class NrLocation(ExtraBaseModel):
     """Contains the NR user location.""" 
     tai: Tai
     ignoreTai: bool = Field(False)
@@ -167,14 +168,14 @@ class NrLocation(BaseModel):
     globalGnbId: GlobalRanNodeId
 
 #TS 29.571
-class CellGlobalId(BaseModel):
+class CellGlobalId(ExtraBaseModel):
     """Contains a Cell Global Identification as defined in 3GPP TS 23.003, clause 4.3.1.""" 
     plmnId: PlmnId
     lac: constr(regex=r'^[A-Fa-f0-9]{4}$')
     cellId: constr(regex=r'^[A-Fa-f0-9]{4}$')
 
 #TS 29.571
-class ServiceAreaId(BaseModel):
+class ServiceAreaId(ExtraBaseModel):
     """Contains a Service Area Identifier as defined in 3GPP TS 23.003, clause 12.5.""" 
     plmnId: PlmnId
     lac: constr(regex=r'^[A-Fa-f0-9]{4}$') = Field(None, description="Location Area Code.")
@@ -182,20 +183,20 @@ class ServiceAreaId(BaseModel):
 
 
 #TS 29.571
-class LocationAreaId(BaseModel):
+class LocationAreaId(ExtraBaseModel):
     """Contains a Location area identification as defined in 3GPP TS 23.003, clause 4.1.""" 
     plmnId: PlmnId
     lac: constr(regex=r'^[A-Fa-f0-9]{4}$') = Field(None, description="Location Area Code.")
 
 #TS 29.571
-class RoutingAreaId(BaseModel):
+class RoutingAreaId(ExtraBaseModel):
     """Contains a Routing Area Identification as defined in 3GPP TS 23.003, clause 4.2.""" 
     plmnId: PlmnId
     lac: constr(regex=r'^[A-Fa-f0-9]{4}$') = Field(None, description="Location Area Code.")
     rac: constr(regex=r'^[A-Fa-f0-9]{2}$') = Field(None, description="Routing Area Code.")
 
 #TS 29.571
-class UtraLocation(BaseModel):
+class UtraLocation(ExtraBaseModel):
     """Exactly one of cgi, sai or lai shall be present.""" 
     cgi: CellGlobalId
     sai: ServiceAreaId
@@ -218,21 +219,21 @@ class LineType(str, Enum):
     pon = "PON" 
 
 #TS 29.571
-class TnapId(BaseModel):
+class TnapId(ExtraBaseModel):
     """Contain the TNAP Identifier see clause5.6.2 of 3GPP TS 23.501.""" 
     ssId: str = Field(None, description="This IE shall be present if the UE is accessing the 5GC via a trusted WLAN access network.When present, it shall contain the SSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012. ")
     bssId: Optional[str] = Field(None, description="When present, it shall contain the BSSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012.")
     civicAddress: constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
 
 #TS 29.571
-class TwapId(BaseModel):
+class TwapId(ExtraBaseModel):
     """Contain the TWAP Identifier as defined in clause 4.2.8.5.3 of 3GPP TS 23.501 or the WLAN location information as defined in clause 4.5.7.2.8 of 3GPP TS 23.402.""" 
     ssId: str = Field(None, description="This IE shall contain the SSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012. ")
     bssId: Optional[str] = Field(None, description="When present, it shall contain the BSSID of the access point to which the UE is attached, for trusted WLAN access, see IEEE Std 802.11-2012.")
     civicAddress: constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
 
 #TS 29.571
-class NThreegaLocation(BaseModel):
+class NThreegaLocation(ExtraBaseModel):
     """Contains the Non-3GPP access user location.""" 
     n3gppTai: Tai
     n3IwfId: constr(regex=r'^[A-Fa-f0-9]+$')
@@ -248,7 +249,7 @@ class NThreegaLocation(BaseModel):
     gci: str = Field(None, description="Global Cable Identifier uniquely identifying the connection between the 5G-CRG or FN-CRG to the 5GS. See clause 28.15.4 of 3GPP TS 23.003. This shall be encoded as a string per clause 28.15.4 of 3GPP TS 23.003, and compliant with the syntax specified in clause 2.2 of IETF RFC 7542 for the username part of a NAI. The GCI value is specified in CableLabs WR-TR-5WWC-ARCH.")
 
 #TS 29.571
-class GeraLocation(BaseModel):
+class GeraLocation(ExtraBaseModel):
     """Contains the Non-3GPP access user location.""" 
     locationNumber: str = Field(None, description="Location number within the PLMN. See 3GPP TS 23.003, clause 4.5. ")
     cgi: CellGlobalId
@@ -263,7 +264,7 @@ class GeraLocation(BaseModel):
     geodeticInformation: constr(regex=r'^[0-9A-F]{20}$')
 
 #TS 29.571
-class UserLocation(BaseModel):
+class UserLocation(ExtraBaseModel):
     """At least one of eutraLocation, nrLocation and n3gaLocation shall be present. Several 
  of them may be present."""
     eutraLocation: EutraLocation
@@ -273,7 +274,7 @@ class UserLocation(BaseModel):
     geraLocation: GeraLocation
 
 #TS 29.122
-class DayOfWeek(BaseModel):
+class DayOfWeek(ExtraBaseModel):
     day: int = Field(None, description="", ge=1, le=7)
 
 
@@ -365,14 +366,14 @@ class NotificationFlag(str, Enum):
     retrieval = "RETRIEVAL"
 
 #TS 29.122
-class WebsockNotifConfig(BaseModel):
+class WebsockNotifConfig(ExtraBaseModel):
     """Represents the configuration information for the delivery of notifications over Websockets."""
     websocketUri: AnyHttpUrl
     requestWebsocketUri: bool = Field(None, description=" Set by the SCS/AS to indicate that the Websocket delivery is requested.")
 
 #TS 29.122
 #TODO: locationArea5g
-# class LocationArea5G(BaseModel):
+# class LocationArea5G(ExtraBaseModel):
 #     """Represents a user location area when the UE is attached to 5G. """
 #     geographicAreas: List[GeographicArea] = Field(None, description="Identifies a list of geographic area of the user where the UE is located.", min_items=0)
 #     civicAddresses: List[CivicAddress] = Field(None, description="Identifies a list of civic addresses of the user where the UE is located.", min_items=0)

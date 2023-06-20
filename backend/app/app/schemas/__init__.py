@@ -1,5 +1,5 @@
 from .path import Path, PathCreate, PathUpdate, PathInDB, PathInDBBase, Paths
-from .msg import Msg
+from .msg import Msg, SinusoidalParameters
 from .token import Token, TokenPayload
 from .user import User, UserCreate, UserInDB, UserUpdate
 from .gNB import gNB, gNBCreate, gNBInDB, gNBUpdate
@@ -18,4 +18,4 @@ from .npConfiguration import NpConfiguration, NpConfigurationCreate, Configurati
 from .racsProvisioning import RacsProvisioningData, RacsProvisioningDataCreate
 from .niddConfigurationTrigger import NiddConfigurationTrigger, NiddConfigurationTriggerReply
 from .analyticsExposure import AnalyticsExposureSubscCreate, AnalyticsEventSubsc, AnalyticsExposureSubsc, AnalyticsEventNotification
-from .utils import scenario
+from .utils import scenario, ExtraBaseModel

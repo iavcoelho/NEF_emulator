@@ -51,10 +51,10 @@ class Settings(BaseSettings):
             path=f"/{values.get('POSTGRES_DB') or ''}",
         )
 
-    MONGO_CLIENT: str
-    CAPIF_HOST: str
-    CAPIF_HTTP_PORT: str
-    CAPIF_HTTPS_PORT: str
+    # MONGO_CLIENT: str
+    # CAPIF_HOST: str
+    # CAPIF_HTTP_PORT: str
+    # CAPIF_HTTPS_PORT: str
 
     SMTP_TLS: bool = True
     SMTP_PORT: Optional[int] = None
@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: EmailStr
     FIRST_SUPERUSER_PASSWORD: str
     USERS_OPEN_REGISTRATION: bool = False
+
+    REPORT_PATH: str
 
     class Config:
         case_sensitive = True

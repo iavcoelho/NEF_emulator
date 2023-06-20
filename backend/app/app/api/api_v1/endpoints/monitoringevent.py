@@ -11,8 +11,10 @@ from app import tools
 from app.db.session import client
 from app.api.api_v1.endpoints.utils import add_notifications
 from .ue_movement import retrieve_ue_state, retrieve_ue
+from .utils import ReportLogging
 
 router = APIRouter()
+router.route_class = ReportLogging
 db_collection= 'MonitoringEvent'
 
 @router.get("/{scsAsId}/subscriptions", response_model=List[schemas.MonitoringEventSubscription], responses={204: {"model" : None}})
@@ -83,16 +85,16 @@ def create_subscription(
         json_compatible_item_data["ipv4Addr"] = UE.ip_address_v4
 
         
-        #If ue is moving retieve ue's information from memory else retrieve info from db
-        if retrieve_ue_state(supi=UE.supi, user_id=current_user.id):
-            cell_id_hex = retrieve_ue(UE.supi).get("cell_id_hex")
-            gnb_id_hex = retrieve_ue(UE.supi).get("gnb_id_hex")
-            json_compatible_item_data["locationInfo"] = {'cellId' : cell_id_hex, 'gNBId' : gnb_id_hex}
-        else:
-            if UE.Cell != None:
-                json_compatible_item_data["locationInfo"] = {'cellId' : UE.Cell.cell_id, 'gNBId' : UE.Cell.gNB.gNB_id}
+        if UE.Cell != None:
+            #If ue is moving retieve ue's information from memory else retrieve info from db
+            if retrieve_ue_state(supi=UE.supi, user_id=current_user.id):
+                cell_id_hex = retrieve_ue(UE.supi).get("cell_id_hex")
+                gnb_id_hex = retrieve_ue(UE.supi).get("gnb_id_hex")
+                json_compatible_item_data["locationInfo"] = {'cellId' : cell_id_hex, 'gNBId' : gnb_id_hex}
             else:
-                json_compatible_item_data["locationInfo"] = {'cellId' : None, 'gNBId' : None}
+                json_compatible_item_data["locationInfo"] = {'cellId' : UE.Cell.cell_id, 'gNBId' : UE.Cell.gNB.gNB_id}
+        else:
+            json_compatible_item_data["locationInfo"] = {'cellId' : None, 'gNBId' : None}
 
         http_response = JSONResponse(content=json_compatible_item_data, status_code=200)
         add_notifications(http_request, http_response, False)

@@ -1,22 +1,23 @@
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field, AnyHttpUrl, constr
+from .utils import ExtraBaseModel
 
 #Common Data Types
 
-class UsageThreshold(BaseModel):
+class UsageThreshold(ExtraBaseModel):
     """Represents a usage threshold."""
     duration: int = Field(None, description="A period of time in units of seconds", ge=0)
     totalVolume: int = Field(None, description="A volume in units of bytes", ge=0)
     downlinkVolume: int = Field(None, description="A volume in units of bytes", ge=0)
     uplinkVolume: int = Field(None, description="A volume in units of bytes", ge=0)
 
-class TimeWindow(BaseModel):
+class TimeWindow(ExtraBaseModel):
     """Represents a time window identified by a start time and a stop time."""
     startTime: datetime = Field(None, description="Identifies the start time.")
     stopTime: datetime = Field(None, description="Identifies the stop time.")
 
-class LocationArea(BaseModel):
+class LocationArea(ExtraBaseModel):
     """Represents a user location area."""
     cellIds: List[str] = Field(None, description="Indicates a list of Cell Global Identities of the user which identifies the cell the UE is registered.", min_items=1)
     enodeBIds: List[str] = Field(None, description="Indicates a list of eNodeB identities in which the UE is currently located.", min_items=1)
@@ -27,7 +28,7 @@ class LocationArea(BaseModel):
     # civicAddresses: List[CivicAddress] = Field(None, description="Identifies a list of civic addresses of the user where the UE is located.", min_items=1)
     pass
 
-class LocationArea5G(BaseModel):
+class LocationArea5G(ExtraBaseModel):
     """Represents a user location area when the UE is attached to 5G."""
     # geographicAreas: List[GeographicArea] = Field(None, description="Identifies a list of geographic area of the user where the UE is located.", min_items=0)
     # civicAddresses: List[CivicAddress] = Field(None, description="Identifies a list of civic addresses of the user where the UE is located.", min_items=0)
@@ -39,7 +40,7 @@ class LocationArea5G(BaseModel):
 
 #Specific Data Types
 
-class TransferPolicy(BaseModel):
+class TransferPolicy(ExtraBaseModel):
     """Represents an offered transfer policy sent from the SCEF to the SCS/AS, or a 
     selected transfer policy sent from the SCS/AS to the SCEF."""
     bdtPolicyId: int = Field(None, description="Identifier for the transfer policy.")
@@ -48,7 +49,7 @@ class TransferPolicy(BaseModel):
     ratingGroup: int = Field(None, description="Indicates the rating group during the time window.", ge=0)
     timeWindow: TimeWindow = None
 
-class BdtCreate(BaseModel):
+class BdtCreate(ExtraBaseModel):
     """Represents a Background Data Transfer subscription."""
     #TODO: TS 29.571 Common Data
     #supportedFeatures: Optional[SupportedFeatures] = None
@@ -73,13 +74,13 @@ class Bdt(BdtCreate):
     class Config:
             orm_mode = True
 
-class BdtPatch(BaseModel):
+class BdtPatch(ExtraBaseModel):
     """Represents a Background Data Transfer subscription modification request."""
     selectedPolicy: int = Field(None, description="Identity of the selected background data transfer policy.")
     warnNotifEnabled: Optional[bool] = Field(None, description="Indicates whether the BDT warning notification is enabled (true) or not (false).")
     notificationDestination: Optional[AnyHttpUrl] = Field("http://localhost:80/api/v1/utils/bdt/callback", description="Reference resource (URL) identifying service consumer's endpoint, in order to receive the asynchronous notification. For testing use 'http://localhost:80/api/v1/utils/bdt/callback'") #Default value for development testing
 
-class ExNotification(BaseModel):
+class ExNotification(ExtraBaseModel):
     """Represents a Background Data Transfer notification."""
     bdtRefId: str = Field(None, description="string identifying a BDT Reference ID as defined in clause 5.3.3 of 3GPP TS 29.154.")
     # locationArea5G: Optional[LocationArea5G] = None

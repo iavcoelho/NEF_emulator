@@ -4,15 +4,16 @@ from pydantic import BaseModel, Field, IPvAnyAddress, AnyHttpUrl, constr
 from enum import Enum
 from .commonData import Snssai, TimeWindow, FlowInfo, Ecgi, Ncgi, GlobalRanNodeId, Tai, UserLocation, RatType, QosResourceType, AnalyticsSubset, PartitioningCriteria, NotificationFlag, WebsockNotifConfig
 from .cpParameterProvisioning import ScheduledCommunicationTime
+from .utils import ExtraBaseModel
 
 ############### TS 29.517 Types ###############
 
-class AddrFqdn(BaseModel):
+class AddrFqdn(ExtraBaseModel):
     """IP address and/or FQDN."""
     ipAddr: IPvAnyAddress
     fqdn: str = Field(None, description="Indicates an FQDN.")
 
-class SvcExperience(BaseModel):
+class SvcExperience(ExtraBaseModel):
     """Contains a mean opinion score with the customized range. """
     mos: float
     upperRange: float
@@ -22,7 +23,7 @@ class SvcExperience(BaseModel):
 
 ############### TS 29.508 Types ###############
 
-class UpfInformation(BaseModel):
+class UpfInformation(ExtraBaseModel):
     """Represents the ID/address/FQDN of the UPF."""
     upfId: str
     upfAddr: AddrFqdn
@@ -36,7 +37,7 @@ class NotificationMethod(str, Enum):
 
 ############### TS 29.523 Types ###############
 
-class ReportingInformation(BaseModel):
+class ReportingInformation(ExtraBaseModel):
     """Represents the type of reporting that the subscription requires."""
     immRep: bool
     notifMethod: NotificationMethod
@@ -53,11 +54,11 @@ class ReportingInformation(BaseModel):
 
 ############### TS 29.503 Types ###############
 
-class SuggestedPacketNumDl(BaseModel):
+class SuggestedPacketNumDl(ExtraBaseModel):
     suggestedPacketNumDl: int = Field(None, description="", ge=1)
     validityTime: datetime
 
-class ExpectedUeBehaviourData(BaseModel):
+class ExpectedUeBehaviourData(ExtraBaseModel):
     """IP address and/or FQDN."""
     #TODO: should be a map
     suggestedPacketNumDlList: List[SuggestedPacketNumDl]
@@ -68,7 +69,7 @@ class ExpectedUeBehaviourData(BaseModel):
 
 ############### TS 29.554 Types ###############
 
-class NetworkAreaInfo(BaseModel):
+class NetworkAreaInfo(ExtraBaseModel):
     """Describes a network area information in which the NF service consumer requests the number of UEs. """
     ecgis: List[Ecgi] = Field(None, description="Contains a list of E-UTRA cell identities.", min_items=1)
     ncgis: List[Ncgi] = Field(None, description="Contains a list of NR cell identities.", min_items=1)
@@ -89,7 +90,7 @@ class FlowDirection(str, Enum):
 
 ############### TS 29.514 Types ###############
 
-class EthFlowDescription(BaseModel):
+class EthFlowDescription(ExtraBaseModel):
     """Identifies an Ethernet flow."""
     destMacAddr: constr(regex=r'^([0-9a-fA-F]{2})((-[0-9a-fA-F]{2}){5})$')
     ethType: str
@@ -206,13 +207,13 @@ class NwdafFailureCode(str, Enum):
     unsatisfiedRequestedAnalyticsTime = "UNSATISFIED_REQUESTED_ANALYTICS_TIME" 
     other = "OTHER"
 
-class RetainabilityThreshold(BaseModel):
+class RetainabilityThreshold(ExtraBaseModel):
     """Represents a QoS flow retainability threshold."""
     relFlowNum: int = Field(None, description="", ge=0)
     relTimeUnit: TimeUnit
     relFlowRatio:  int = Field(None, description="Expressed in percent", ge=1, le=100)
 
-class ThresholdLevel(BaseModel):
+class ThresholdLevel(ExtraBaseModel):
     """Represents a threshold level."""
     congLevel: int
     nfLoadLevel: int
@@ -226,36 +227,36 @@ class ThresholdLevel(BaseModel):
     avgPacketLossRate: int = Field(None, description="Expressed in tenth of percent", ge=0, le=1000)
     svcExpLevel: float
 
-class TopApplication(BaseModel):
+class TopApplication(ExtraBaseModel):
     """Top application that contributes the most to the traffic. """
     appId: str = Field(None, description="String providing an application identifier.")
     ipTrafficFilter: FlowInfo
     ratio: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
 
-class Exception(BaseModel):
+class Exception(ExtraBaseModel):
     """Represents the Exception information."""
     excepId: ExceptionId
     excepLevel: int
     excepTrend: ExceptionTrend
 
-class IpEthFlowDescription(BaseModel):
+class IpEthFlowDescription(ExtraBaseModel):
     """Contains the description of an Uplink and/or Downlink Ethernet flow."""
     ipTrafficFilter: str = Field(None, description="Defines a packet filter of an IP flow.")
     ethTrafficFilter: EthFlowDescription
 
-class AddressList(BaseModel):
+class AddressList(ExtraBaseModel):
     """Represents a list of IPv4 and/or IPv6 addresses."""
     ipv4Addrs: List[IPvAnyAddress] = Field(None, description="String identifying an Ipv4 address", min_items=1)
     ipv6Addrs: List[IPvAnyAddress] = Field(None, description="String identifying an Ipv6 address", min_items=1)
 
-class CircumstanceDescription(BaseModel):
+class CircumstanceDescription(ExtraBaseModel):
     """Contains the description of a circumstance."""
     freq: float
     tm: datetime
     locArea: NetworkAreaInfo
     vol: int = Field(None, description=" Unsigned integer identifying a volume in units of bytes.", ge=0)
 
-class AdditionalMeasurement(BaseModel):
+class AdditionalMeasurement(ExtraBaseModel):
     """Represents additional measurement information."""
     unexpLoc: NetworkAreaInfo
     unexpFlowTeps: List[IpEthFlowDescription] = Field(None, description="", min_items=1)
@@ -264,7 +265,7 @@ class AdditionalMeasurement(BaseModel):
     wrgDest: AddressList
     circums: List[CircumstanceDescription] = Field(None, description="", min_items=1)
 
-class TrafficCharacterization(BaseModel):
+class TrafficCharacterization(ExtraBaseModel):
     """Identifies the detailed traffic characterization."""
     dnn: str = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
     snssai: Snssai
@@ -275,7 +276,7 @@ class TrafficCharacterization(BaseModel):
     dlVol: int = Field(None, description=" Unsigned integer identifying a volume in units of bytes.", ge=0)
     dlVolVariance: float
 
-class AppListForUeComm(BaseModel):
+class AppListForUeComm(ExtraBaseModel):
     """Represents the analytics of the application list used by UE. """
     appId: str = Field("", description="String providing an application identifier.")
     startTime: datetime
@@ -283,12 +284,12 @@ class AppListForUeComm(BaseModel):
     occurRatio: int = Field(None, description="Expressed in percent", ge=1, le=100)
     spatialValidity: NetworkAreaInfo
 
-class SessInactTimerForUeComm(BaseModel):
+class SessInactTimerForUeComm(ExtraBaseModel):
     """Represents the N4 Session inactivity timer."""
     n4SessId: int = Field(None, description="", ge=0, le=255)
     sessInactiveTimer: int = Field(None, description="", ge=0)
 
-class UeCommunication(BaseModel):
+class UeCommunication(ExtraBaseModel):
     """Represents UE communication information."""
     commDur: int = Field(None, description="", ge=0)
     commDurVariance: float
@@ -304,12 +305,12 @@ class UeCommunication(BaseModel):
     anaOfAppList: AppListForUeComm
     sessInactTimer: SessInactTimerForUeComm
 
-class ApplicationVolume(BaseModel):
+class ApplicationVolume(ExtraBaseModel):
     """ApplicationVolume"""
     appId: str = Field(None, description="String providing an application identifier.")
     appVolume: int = Field(None, description="", ge=0)
 
-class DispersionCollection(BaseModel):
+class DispersionCollection(ExtraBaseModel):
     """Dispersion collection per UE location or per slice."""
     ueLoc: UserLocation
     snssai: Snssai
@@ -323,7 +324,7 @@ class DispersionCollection(BaseModel):
     ueRatio: int = Field(None, description="", ge=1, le=100)
     confidence: int = Field(None, description="", ge=0)
 
-class DispersionInfo(BaseModel):
+class DispersionInfo(ExtraBaseModel):
     """Represents the Dispersion information. When subscribed event is "DISPERSION", the 
  "disperInfos" attribute shall be included."""
     tsStart: datetime
@@ -331,7 +332,7 @@ class DispersionInfo(BaseModel):
     disperCollects: List[DispersionCollection] = Field(None, description="", min_items=1)
     disperType = DispersionType
 
-class PerfData(BaseModel):
+class PerfData(ExtraBaseModel):
     """Represents DN performance data."""
     avgTrafficRate: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
     maxTrafficRate: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
@@ -340,7 +341,7 @@ class PerfData(BaseModel):
     avgPacketLossRate: int = Field(None, description="Expressed in tenth of percent.", ge=0, le=1000)
     
 
-class DnPerf(BaseModel):
+class DnPerf(ExtraBaseModel):
     """ Represents DN performance for the application."""
     appServerInsAddr: AddrFqdn
     upfInfo: UpfInformation
@@ -349,7 +350,7 @@ class DnPerf(BaseModel):
     spatialValidCon: NetworkAreaInfo
     temporalValidCon: TimeWindow
 
-class DnPerfInfo(BaseModel):
+class DnPerfInfo(ExtraBaseModel):
     """Represents DN performance information."""
     appId: str = Field(None, description="String providing an application identifier.")
     dnn: Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
@@ -358,13 +359,13 @@ class DnPerfInfo(BaseModel):
     confidence: int = Field(None, description="", ge=0)
 
 
-class LocationInfo(BaseModel):
+class LocationInfo(ExtraBaseModel):
     """Represents UE location information."""
     loc: UserLocation
     ratio: int = Field(None, description="Expressed in percent.", ge=1, le=100)
     confidence: int = Field(None, description="", ge=0)
 
-class RatFreqInformation(BaseModel):
+class RatFreqInformation(ExtraBaseModel):
     """Represents the RAT type and/or Frequency information."""
     allFreq: Optional[bool] = Field(False, description="Set to true to indicate to handle all the frequencies the NWDAF received, otherwise set to false or omit. The allFreq attribute and the freq attribute are mutually exclusive.")
     allRat: Optional[bool] = Field(False, description="Set to true to indicate to handle all the RAT Types the NWDAF received, otherwise set to false or omit. The allRat attribute and the ratType attribute are mutually exclusive. ")
@@ -373,7 +374,7 @@ class RatFreqInformation(BaseModel):
     svcExpThreshold: ThresholdLevel
     matchingDir: MatchingDirection
 
-class ServiceExperienceInfo(BaseModel):
+class ServiceExperienceInfo(ExtraBaseModel):
     """ Represents service experience information."""
     svcExprc: SvcExperience
     svcExprcVariance: float
@@ -392,18 +393,18 @@ class ServiceExperienceInfo(BaseModel):
     ratio: int = Field(None, description="Expressed in percent.", ge=1, le=100)
     ratFreq: RatFreqInformation
 
-class ClassCriterion(BaseModel):
+class ClassCriterion(ExtraBaseModel):
     """Indicates the dispersion class criterion for fixed, camper and/or traveller UE, and/or the top-heavy UE dispersion class criterion."""
     disperClass: DispersionClass
     classThreshold: int = Field(None, description="Expressed in percent.", ge=1, le=100)
     thresMatch: MatchingDirection
 
-class RankingCriterion(BaseModel):
+class RankingCriterion(ExtraBaseModel):
     """ Indicates the usage ranking criterion between the high, medium and low usage UE."""
     highBase: int = Field(None, description="Expressed in percent.", ge=1, le=100)
     lowBase: int = Field(None, description="Expressed in percent.", ge=1, le=100)
 
-class DispersionRequirement(BaseModel):
+class DispersionRequirement(ExtraBaseModel):
     """Represents the dispersion analytics requirements."""
     disperType: DispersionType
     classCriters: List[ClassCriterion] = Field(None, description="", min_items=1)
@@ -411,12 +412,12 @@ class DispersionRequirement(BaseModel):
     dispOrderCriter: DispersionOrderingCriterion
     order: MatchingDirection
 
-class NsiIdInfo(BaseModel):
+class NsiIdInfo(ExtraBaseModel):
     """Represents the S-NSSAI and the optionally associated Network Slice Instance(s)."""
     snssai: Snssai
     nsiIds: List[str] = Field(None, description="", min_items=1)
 
-class QosRequirement(BaseModel):
+class QosRequirement(ExtraBaseModel):
     """Represents the QoS requirements."""
     fiveqi: int = Field(None, description="", ge=0, le=255)
     gfbrUl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
@@ -425,13 +426,13 @@ class QosRequirement(BaseModel):
     pdb: int = Field(None, description="Expressed in milliseconds.", ge=1)
     per: constr(regex=r'^([0-9]E-[0-9])$')
 
-class DnPerformanceReq(BaseModel):
+class DnPerformanceReq(ExtraBaseModel):
     """ Represents other DN performance analytics requirements."""
     dnPerfOrderCriter: DnPerfOrderingCriterion
     order: MatchingDirection
     reportThresholds: List[ThresholdLevel] = Field(None, description="", min_items=1)
 
-class BwRequirement(BaseModel):
+class BwRequirement(ExtraBaseModel):
     """Represents bandwidth requirements."""
     appId: str = Field(None, description="String providing an application identifier.")
     marBwDl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
@@ -439,7 +440,7 @@ class BwRequirement(BaseModel):
     mirBwDl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
     mirBwUl: constr(regex=r'^\d+(\.\d+)? (bps|Kbps|Mbps|Gbps|Tbps)$')
 
-class AnalyticsMetadataIndication(BaseModel):
+class AnalyticsMetadataIndication(ExtraBaseModel):
     """Contains analytics metadata information requested to be used during analytics generation."""
     dataWindow: TimeWindow
     dataStatProps: List[DatasetStatisticalProperty] = Field(None, description="", min_items=1)
@@ -447,7 +448,7 @@ class AnalyticsMetadataIndication(BaseModel):
     aggrNwdafIds: List[str] = Field(None, description="", min_items=1)
 
 
-class EventReportingRequirement(BaseModel):
+class EventReportingRequirement(ExtraBaseModel):
     """Represents the type of reporting that the subscription requires."""
     accuracy: Accuracy
     accPerSubset: List[Accuracy] = Field(None, description="", min_items=1)
@@ -461,7 +462,7 @@ class EventReportingRequirement(BaseModel):
     anaMeta: List[AnalyticsMetadata] = Field(None, description="", min_items=1)
     anaMetaInd: AnalyticsMetadataIndication
 
-class NetworkPerfRequirement(BaseModel):
+class NetworkPerfRequirement(ExtraBaseModel):
     """Represents a network performance requirement."""
     nwPerfType: NetworkPerfType
     relativeRatio: int = Field(None, description="Expressed in percent.", ge=1, le=100)
@@ -486,13 +487,13 @@ class AnalyticsEvent(str, Enum):
     dnPerformance = "DN_PERFORMANCE" 
     serviceExperience = "SERVICE_EXPERIENCE"
 
-class UeLocationInfo(BaseModel):
+class UeLocationInfo(ExtraBaseModel):
     """Represents a UE location information."""
     # loc: LocationArea5G
     ratio: int = Field(None, description="Expressed in percent", ge=1, le=100)
     confidence: int = Field(None, description="", ge=0)
 
-class UeMobilityExposure(BaseModel):
+class UeMobilityExposure(ExtraBaseModel):
     """Represents a UE mobility information."""
     ts: datetime
     recurringTime: ScheduledCommunicationTime
@@ -500,13 +501,13 @@ class UeMobilityExposure(BaseModel):
     durationVariance: float
     locInfo: List[UeLocationInfo] = Field(None, description="", min_items=1)
 
-class AnalyticsFailureEventInfo(BaseModel):
+class AnalyticsFailureEventInfo(ExtraBaseModel):
     """Represents an event for which the subscription request was not successful 
 and including the associated failure reason. """
     event: AnalyticsEvent
     failureCode: AnalyticsFailureCode
 
-class QosSustainabilityExposure(BaseModel):
+class QosSustainabilityExposure(ExtraBaseModel):
     """Represents a QoS sustainability information."""
     #TODO: LocationArea5G
     # locArea: LocationArea5G
@@ -517,7 +518,7 @@ class QosSustainabilityExposure(BaseModel):
     snssai: Snssai
     confidence: int = Field(None, description="", ge=0)
 
-class CongestionAnalytics(BaseModel):
+class CongestionAnalytics(ExtraBaseModel):
     """Represents data congestion analytics for transfer over the user plane, 
  control plane or both."""
     cngType: CongestionType
@@ -527,12 +528,12 @@ class CongestionAnalytics(BaseModel):
     topAppListUl: List[TopApplication] = Field(None, description="", min_items=1)
     topAppListDl: List[TopApplication] = Field(None, description="", min_items=1)
 
-class CongestInfo(BaseModel):
+class CongestInfo(ExtraBaseModel):
     """Represents a UE's user data congestion information."""
     # locArea: LocationArea5G
     cngAnas: List[CongestionAnalytics] = Field(None, description="", min_items=1)
 
-class AbnormalExposure(BaseModel):
+class AbnormalExposure(ExtraBaseModel):
     """Represents a user's abnormal behavior information."""
     #TODO: test this list
     gpsis: List[constr(regex=r'^(msisdn-[0-9]{5,15}|extid-.+@.+|.+)$')] = Field(None, description="", min_items=1)
@@ -544,7 +545,7 @@ class AbnormalExposure(BaseModel):
     confidence: int = Field(None, description="", ge=0)
     addtMeasInfo: AdditionalMeasurement
 
-class NetworkPerfExposure(BaseModel):
+class NetworkPerfExposure(ExtraBaseModel):
     """Represents network performance information."""
     # locArea: LocationArea5G
     nwPerfType: NetworkPerfType
@@ -552,7 +553,7 @@ class NetworkPerfExposure(BaseModel):
     absoluteNum: int = Field(None, description="", ge=0)
     confidence: int = Field(None, description="", ge=0)
 
-class AnalyticsData(BaseModel):
+class AnalyticsData(ExtraBaseModel):
     """Represents analytics data."""
     start: datetime
     expiry: datetime
@@ -569,7 +570,7 @@ class AnalyticsData(BaseModel):
     disperReqs: List[DispersionRequirement] = Field(None, description="", min_items=1)
     suppFeat: constr(regex=r'^[A-Fa-f0-9]*$')
 
-class AnalyticsEventFilter(BaseModel):
+class AnalyticsEventFilter(ExtraBaseModel):
     """ Represents analytics event filter information."""
     # locArea: LocationArea5G
     dnn: Optional[str] = Field("province1.mnc01.mcc202.gprs", description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
@@ -591,13 +592,13 @@ class AnalyticsEventFilter(BaseModel):
     maxNumOfTopAppDl: int = Field(None, description="", ge=0)
     # visitedLocAreas: List[LocationArea5G] = Field(None, description="", min_items=1)
 
-class TargetUeId(BaseModel):
+class TargetUeId(ExtraBaseModel):
     """Represents the target UE(s) information."""
     anyUeInd: bool
     gpsi: constr(regex=r'^(msisdn-[0-9]{5,15}|extid-.+@.+|.+)$')
     exterGroupId: str = Field("Group1@domain.com", description="")
 
-class AnalyticsRequest(BaseModel):
+class AnalyticsRequest(ExtraBaseModel):
     """Represents the parameters to request to retrieve analytics information."""
     analyEvent: AnalyticsEvent
     analyEventFilter: AnalyticsEventFilter
@@ -605,13 +606,13 @@ class AnalyticsRequest(BaseModel):
     tgtUe: TargetUeId
     suppFeat: constr(regex=r'^[A-Fa-f0-9]*$')
 
-class UeLocationInfo(BaseModel):
+class UeLocationInfo(ExtraBaseModel):
     """Represents a UE location information."""
     # loc: LocationArea5G
     ratio: int = Field(None, description="Expressed in percent", ge=1, le=100)
     confidence: int = Field(None, description="", ge=0)
 
-class UeMobilityExposure(BaseModel):
+class UeMobilityExposure(ExtraBaseModel):
     """ Represents a UE mobility information."""
     ts: datetime
     recurringTime: ScheduledCommunicationTime
@@ -619,7 +620,7 @@ class UeMobilityExposure(BaseModel):
     durationVariance: float
     locInfo: List[UeLocationInfo] = Field(None, description="", min_items=1)
 
-class AnalyticsEventFilterSubsc(BaseModel):
+class AnalyticsEventFilterSubsc(ExtraBaseModel):
     """Represents an analytics event filter."""
     nwPerfReqs: List[NetworkPerfRequirement] = Field(None, description="", min_items=1)
     # locArea: LocationArea5G
@@ -647,13 +648,13 @@ class AnalyticsEventFilterSubsc(BaseModel):
     maxNumOfTopAppDl: int = Field(None, description="", ge=0)
     # visitedLocAreas: List[LocationArea5G] = Field(None, description="", min_items=1)
 
-class AnalyticsEventSubsc(BaseModel):
+class AnalyticsEventSubsc(ExtraBaseModel):
     """Represents a subscribed analytics event."""
     analyEvent: AnalyticsEvent
     analyEventFilter: AnalyticsEventFilterSubsc
     tgtUe: TargetUeId
 
-class AnalyticsEventNotif(BaseModel):
+class AnalyticsEventNotif(ExtraBaseModel):
     """Represents an analytics event to be reported."""
     analyEvent: AnalyticsEvent
     expiry: datetime
@@ -672,12 +673,12 @@ class AnalyticsEventNotif(BaseModel):
     start: datetime
     timeStampGen: datetime
 
-class AnalyticsEventNotification(BaseModel):
+class AnalyticsEventNotification(ExtraBaseModel):
     """Represents an analytics event(s) notification."""
     notifId: str
     analyEventNotifs: List[AnalyticsEventNotif] = Field(None, description="", min_items=1)
 
-class AnalyticsExposureSubscCreate(BaseModel):
+class AnalyticsExposureSubscCreate(ExtraBaseModel):
     """Represents an analytics exposure subscription."""
     analyEventsSubs: List[AnalyticsEventSubsc] = Field(None, description="", min_items=1)
     analyRepInfo: ReportingInformation

@@ -1,21 +1,35 @@
 import threading, logging, time, requests
 from fastapi import APIRouter, Path, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
+from pymongo import MongoClient
 from typing import Any
 from app import crud, tools, models
 from app.crud import crud_mongo
 from app.tools.distance import check_distance
+from app.tools.rsrp_calculation import check_rsrp, check_path_loss
 from app.tools import qos_callback
 from app.db.session import SessionLocal, client
 from app.api import deps
 from app.schemas import Msg
 from app.tools import monitoring_callbacks, timer
+from sqlalchemy.orm import Session
 
 #Dictionary holding threads that are running per user id.
 threads = {}
 
 #Dictionary holding UEs' information
 ues = {}
+
+#Dictionary holding UEs' distances to cells
+distances = {}
+
+#Dictionary holding UEs' path losses in reference to cells
+path_losses = {}
+
+#Dictionary holding UEs' path losses in reference to cells
+rsrps = {}
+
+handovers = {}
 
 class BackgroundTasks(threading.Thread):
 
@@ -55,7 +69,7 @@ class BackgroundTasks(threading.Thread):
             
             #Insert running UE in the dictionary
 
-            global ues
+            global ues, distances, handovers
             ues[f"{supi}"] = jsonable_encoder(UE)
             ues[f"{supi}"].pop("id")
 
@@ -137,7 +151,13 @@ class BackgroundTasks(threading.Thread):
                     # cell_now = check_distance(UE.latitude, UE.longitude, json_cells) #calculate the distance from all the cells
                     ues[f"{supi}"]["latitude"] = points[current_position_index]["latitude"]
                     ues[f"{supi}"]["longitude"] = points[current_position_index]["longitude"]
-                    cell_now = check_distance(ues[f"{supi}"]["latitude"], ues[f"{supi}"]["longitude"], json_cells) #calculate the distance from all the cells
+                    cell_now, distances_now = check_distance(ues[f"{supi}"]["latitude"], ues[f"{supi}"]["longitude"], json_cells) #calculate the distance from all the cells
+                    distances[f"{supi}"] = distances_now
+                    path_losses_now = check_path_loss(ues[f"{supi}"]["latitude"], ues[f"{supi}"]["longitude"], json_cells)
+                    path_losses[f"{supi}"] = path_losses_now
+                    rsrp_now = check_rsrp(ues[f"{supi}"]["latitude"], ues[f"{supi}"]["longitude"], json_cells)
+                    rsrps[f"{supi}"] = rsrp_now
+
                 except Exception as ex:
                     logging.warning("Failed to update coordinates")
                     logging.warning(ex)
@@ -187,9 +207,8 @@ class BackgroundTasks(threading.Thread):
                     if qos_sub:
                         active_subscriptions.update({"as_session_with_qos" : True})
                         reporting_freq = qos_sub["qosMonInfo"]["repFreqs"]
-                        
+                        reporting_period = qos_sub["qosMonInfo"]["repPeriod"]
                         if "PERIODIC" in reporting_freq:
-                            reporting_period = qos_sub["qosMonInfo"]["repPeriod"]
                             rt = timer.RepeatedTimer(reporting_period, qos_callback.qos_notification_control, qos_sub, ues[f"{supi}"]["ip_address_v4"], ues.copy(),  ues[f"{supi}"])
                             # qos_callback.qos_notification_control(qos_sub, ues[f"{supi}"]["ip_address_v4"], ues.copy(),  ues[f"{supi}"])
 
@@ -248,7 +267,10 @@ class BackgroundTasks(threading.Thread):
                          #Monitoring Event API - UE reachability
                         
                         
-                        # logging.warning(f"UE({UE.supi}) with ipv4 {UE.ip_address_v4} handovers to Cell {cell_now.get('id')}, {cell_now.get('description')}")
+                        logging.warning(f"UE({UE.supi}) with ipv4 {UE.ip_address_v4} handovers to Cell {cell_now.get('id')}, {cell_now.get('description')}")
+                        
+                        handovers[f"{UE.supi}"]= cell_now.get('id')
+
                         ues[f"{supi}"]["Cell_id"] = cell_now.get('id')
                         ues[f"{supi}"]["cell_id_hex"] = cell_now.get('cell_id')
                         gnb = crud.gnb.get(db=self._db, id=cell_now.get("gNB_id"))
@@ -468,6 +490,18 @@ def retrieve_ues() -> dict:
 def retrieve_ue(supi: str) -> dict:
     return ues.get(supi)
 
+def retrieve_ue_distances(supi: str) -> dict:
+    return distances.get(supi)
+
+def retrieve_ue_path_losses(supi: str) -> dict:
+    return path_losses.get(supi)
+
+def retrieve_ue_rsrps(supi: str) -> dict:
+    return rsrps.get(supi)
+
+def retrieve_ue_handovers(supi: str) -> dict:
+    print(handovers)
+    return handovers.get(supi)
 
 def monitoring_event_sub_validation(sub: dict, is_superuser: bool, current_user_id: int, owner_id) -> bool:
     

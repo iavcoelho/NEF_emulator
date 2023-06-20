@@ -5,14 +5,7 @@
   <img src="./backend/app/app/static/NEF_logo_400x400_light.svg" />
 </p>
 
-## Contents
-
-- [Setup locally](#-setup-locally)
-  - [Try out your setup](#try-out-your-setup)
-- [How to work with a specific tag / release](#%EF%B8%8F-how-to-work-on-a-specific-tag--release)
-- [NetApp communication options](#%EF%B8%8F-netapp-communication-options)
-- [Integration with CAPIF](#integration-with-capif)
-
+>This is a local implentation of the NEF emulator proposed by [EVOLVED-5G](https://5g-ppp.eu/evolved-5g-builds-the-first-3gpp-nef-emulator-to-support-smes-on-5g-programmability/).    
 ## ⚙ Setup locally
 
 **Host prerequisites**: `docker`, `docker-compose 1.29.2`, `build-essential`\*, `jq`\*\*
@@ -53,28 +46,78 @@ After the containers are up and running:
      - Default credentials: `admin@my-email.com` / `pass`
      - they can be found/changed inside your `.env` file
 
+> For more in-depth details about the initial NEF emulator configuration, please visit the original repository [medianetlab/NEF_emulator](https://github.com/medianetlab/NEF_emulator).
+---
 
+## [5GASP](https://www.5gasp.eu/) guidelines and extensions
+A key part of enmpowering the idea-to-market process in 5G Network Applications (NetApps) is to prove their 5G readinees. In 5GASP we propose the use of NEF to test the interaction between NetApps and 5G functionalies. We have tested and extended some capabilities from the NEF emulator prposed by the EVOLVED-5G project. Some quick guidelines for a local deployment are described next:
 
-<br><br>
+### 1. Create access token login:
+Super user credentials  
+  * Username = admin@my-email.com 
+  * Password = pass  
+  ```bash
+  curl --location --request POST 'http://{url}/api/v1/login/access-token' \ 
+  --header 'Accept: application/json' \ 
+  --header 'Content-Type: application/x-www-form-urlencoded' \ 
+  --data-raw 'grant_type=&username=admin%40my-email.com&password=pass&scope=&client_id=&client_secret=' 
+  ```
+please replace `{url}` with the address where the NEF emulator is running. If the request is successful, you will get an `access_token` and a `token_type`.
 
+### 2. Test access token
+  ```bash
+curl --location --request POST 'http://{url}/api/v1/login/test-token' \
+--header 'Accept: application/json' \ 
+--header 'Content-Type: application/x-www-form-urlencoded' \ 
+--header 'Authorization: Bearer {access_token}' 
+  ```  
+replace `access_token` with the value obtained in the previous step. If the request is successfull, details about the user will be returned.
 
+### 3. Get UE info
+  ```bash
+  curl --location --request GET 'http://{url}/api/v1/UEs/{supi}' \ 
+  --header 'Accept: application/json' \   
+  --header 'Authorization: Bearer {access_token}' 
+  ```
+Replace `supi` with the UE ID from the emulator. 
 
-## 🏷️ How to work on a specific tag / release
+### 4. Get UE serving cell (New)
+```bash 
+curl --location --request GET 'http://{url}api/v1/UEs/{supi}/serving_cell' \ 
+--header 'Accept: application/json' \ 
+--header 'Authorization: Bearer {token}' 
+```
+Replace `supi` with the UE ID from the emulator. 
+### 5. Get UE distance to cells (New api)
+Based on [Haversine formula](https://community.esri.com/t5/coordinate-reference-systems-blog/distance-on-a-sphere-the-haversine-formula/ba-p/902128#:~:text=For%20example%2C%20haversine(%CE%B8),longitude%20of%20the%20two%20points.) that determines the great-circle distance between two points on a sphere given their longitudes and latitudes. 
 
-After `git clone` or `git pull` you can specify the release you want to work on by just using its `tag` in the following command:
+```bash 
+curl --location --request GET 'http://{url}api/v1/UEs/{supi}/distances' \ 
+--header 'Accept: application/json' \ 
+--header 'Authorization: Bearer {token}' 
+```
+Replace `supi` with the UE ID from the emulator. 
 
-    git switch --detach tag_here
+### 6. Get UE path loss in reference to cells (New)
+Based on the formula: $Path loss =28.0+22*log10⁡(d)+20 log10⁡( fc)$, 
+from the 5G propagation model defined in [3GPP 36.873](https://portal.3gpp.org/desktopmodules/Specifications/SpecificationDetails.aspx?specificationId=2574). 
+```bash
+curl --location --request GET 'http://{url}api/v1/UEs/{supi}/path_losses' \ 
+--header 'Accept: application/json' \ 
+--header 'Authorization: Bearer {token}' 
+```
+Replace `supi` with the UE ID from the emulator. 
 
-You will get into a *detached HEAD* state in Git, but this is perfectly fine, you can go back anytime by just using `git switch main`.  
-Short reasoning on why we choose tags over branches:
+### 7. Get UE RSRP in reference to cells (New)
+Based on the simplified formula: $RSRP = AntennaPower - Path Loss$, from the [3GPP TS 38.133](https://www.techplayon.com/5g-nr-rsrp-measurement-report-mapping/).
+```bash
+curl --location --request GET 'http://{url}api/v1/UEs/{supi}/rsrps' \ 
+--header 'Accept: application/json' \ 
+--header 'Authorization: Bearer {token}' 
+```
+Replace `supi` with the UE ID from the emulator. 
 
->**A tag is immutable.**  
->[source](https://stackoverflow.com/questions/9810050/why-should-i-use-tags-vs-release-beta-branches-for-versioning/)
-
-
-
-<br><br>
-
+---
 
 
 ## ↔️ NetApp communication options
@@ -112,7 +155,7 @@ If you develop your NetApp directly on the host, for example a `Flask` app runni
 ### 2. via the same docker `bridge` network
 
 If you develop your NetApp as a container, the easiest way to establish a bi-directional communication would be to `attach` it to the pre-existing bridge network that the NEF_emulator containers use:
- - this bridge network is automatically created whenever you `docker-compose up` a project, in our case if CAPIF Core Function is integrated with NEF then the docker network is named as `services_default`. If NEF Emulator is used **without** CAPIF Core Function then the network is named as `nef_emulator_services_default`
+ - this bridge network is automatically created whenever you `docker-compose up` a project, in our case that would probably be named as `nef_emulator_default`
  - Docker will provide automatic DNS resolution between these containers names
  - your NetApp will be able to connect to the NEF_emulator at `http://backend`
  - the NEF_emulator will be able to connect to your NetApp at `http://your_netapp_container_name:9999`
@@ -143,7 +186,7 @@ Three possible ways to achieve the above approach:
 
 1. with **docker**, try the `--net=...` option and provide the bridge name that you want to `attach` to:
 
-       docker container run --net=<network_name> ...
+       docker container run --net=nef_emulator_default ...
 
 2. with **docker-compose**, try adding the bridge as an external network, something like:
 
@@ -153,38 +196,11 @@ Three possible ways to achieve the above approach:
            netapp:
            ....
                networks:
-                  - <network_name>
+                  - nef_emulator_default
        networks:
-         <network_name>:
+         nef_emulator_default:
            external: true
 
 3. with **docker network connect**, try adding your container to the bridge network:
 
        docker network connect BRIDGE_NAME NETAPP_NAME
-
-## Integration with CAPIF
-
-In order to integrate NEF Emulator with CAPIF you should perform the following steps:
-
-1. The first step is to ensure that all CAPIF services are up and running. After cloning the code from the official github repository https://github.com/EVOLVED-5G/CAPIF_API_Services you can execute:
-
-```
-cd services/
-
-sudo ./run.sh
-
-./check_services_are_running.sh
-```
-
-2. Then, in NEF Emulator project, change the `EXTERNAL_NET` environment variable to **true** in `.env` file. This will enable NEF containers to join CAPIF's pre-existing network (services_default). Note that if you want to use NEF Emulator without CAPIF, then change the `EXTERNAL_NET` environment variable back to **false** in `.env` file
-
-3. Start NEF services either using `make up` or `make debug-up` commands
-
-NEF should be successfully onboard to CAPIF Core Function. To ensure that, the following files should be created in `app/core/certificates/` folder:
-
-```
-ca.crt
-private.key
-test_nef01.crt
-capif_exposer_details.json
-```

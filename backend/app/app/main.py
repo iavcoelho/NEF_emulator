@@ -7,8 +7,7 @@ import time
 # imports for UI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 # ================================= Main Application - NEF Emulator =================================
 app = FastAPI(title=settings.PROJECT_NAME,
@@ -29,7 +28,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # ================================= Sub Application - Northbound APIs =================================
 
-nefapi = FastAPI(title="Northbound APIs")
+nefapi = FastAPI(title="Northbound APIs", openapi_prefix="/nef")
 nefapi.include_router(nef_router, prefix=settings.API_V1_STR)
 app.mount("/nef", nefapi)
 

@@ -1,7 +1,3 @@
 .vscode
 .mypy_cache
 .env
-*.key
-*.crt
-!ca.crt
-capif_exposer_details.json
