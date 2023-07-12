@@ -13,6 +13,7 @@ from app.api import deps
 from app.schemas import Msg
 from app.tools import monitoring_callbacks, timer
 from sqlalchemy.orm import Session
+import pika
 
 #Dictionary holding threads that are running per user id.
 threads = {}
@@ -30,6 +31,10 @@ path_losses = {}
 rsrps = {}
 
 handovers = {}
+
+# connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+# channel = connection.channel()
+# channel.queue_declare(queue='my_queue')
 
 class BackgroundTasks(threading.Thread):
 
@@ -56,6 +61,12 @@ class BackgroundTasks(threading.Thread):
         try:
             db_mongo = client.fastapi
 
+            #Connect to broker
+
+            # connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+            # channel = connection.channel()
+            # channel.queue_declare(queue='my_queue')
+
             #Initiate UE - if exists
             UE = crud.ue.get_supi(db=self._db, supi=supi)
             if not UE:
@@ -80,6 +91,28 @@ class BackgroundTasks(threading.Thread):
                 ues[f"{supi}"]["cell_id_hex"] = None
                 ues[f"{supi}"]["gnb_id_hex"] = None
 
+            
+            # # Define a callback function for processing the received message
+            # def process_message(ch, method, properties, body):
+            #     global ues                
+            #     try:
+            #         # Process the received message
+            #         value = float(body)
+            #         print("Received message:", value)
+                    
+            #         # Attribute values to the UE entity
+            #         ues[f"{supi}"]["uplink"]  = value
+
+            #         channel.stop_consuming()                    
+            #     except Exception as ex:
+            #         logging.error(f"Failed to process message: {ex}")
+            
+            # # Set up the message consumer
+            # channel.basic_consume(queue='my_queue', on_message_callback=process_message, auto_ack=True)
+
+            # # Start consuming messages
+            # print("Consumer started. Waiting for messages...")
+            # channel.start_consuming()
 
             #Retrieve paths & points
             path = crud.path.get(db=self._db, id=UE.path_id)
@@ -269,7 +302,11 @@ class BackgroundTasks(threading.Thread):
                         
                         logging.warning(f"UE({UE.supi}) with ipv4 {UE.ip_address_v4} handovers to Cell {cell_now.get('id')}, {cell_now.get('description')}")
                         
-                        handovers[f"{UE.supi}"]= cell_now.get('id')
+                        if f"{UE.supi}" not in handovers.keys():
+                            handovers[f"{UE.supi}"] = []
+                            
+
+                        handovers[f"{UE.supi}"].append(cell_now.get('id'))
 
                         ues[f"{supi}"]["Cell_id"] = cell_now.get('id')
                         ues[f"{supi}"]["cell_id_hex"] = cell_now.get('cell_id')
@@ -500,8 +537,10 @@ def retrieve_ue_rsrps(supi: str) -> dict:
     return rsrps.get(supi)
 
 def retrieve_ue_handovers(supi: str) -> dict:
-    print(handovers)
-    return handovers.get(supi)
+    result = handovers.get(supi)
+    if result != None:
+        return handovers.get(supi)
+    return []
 
 def monitoring_event_sub_validation(sub: dict, is_superuser: bool, current_user_id: int, owner_id) -> bool:
     
