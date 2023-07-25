@@ -14,7 +14,8 @@ var app = {
     local_storage_available: false,
     auth_obj:                null,
     api_url: "/api/v1",
-    default_redirect: "/dashboard"
+    default_redirect: "/dashboard",
+    test_url: "/test/api/v1"
 };
 
 // ======================================================

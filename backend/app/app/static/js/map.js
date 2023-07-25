@@ -1136,3 +1136,119 @@ function helper_check_path_is_already_painted( path_id ) {
     }
     return true;
 }
+
+
+// =====================================================
+//     Code for adding functions to generate numbers
+// =====================================================
+
+function showFileSelect() {
+    document.getElementById('fileSelectArea').classList.remove('hidden');
+}
+
+function openFileInput() {
+    document.getElementById('fileInput').click();
+}
+
+function handleFileSelect(event) {
+    const fileName = event.target.files[0].name;
+    document.getElementById('fileNameDisplay').textContent = fileName;
+    document.getElementById('selectFileText').classList.add('hidden');
+    document.getElementById('fileNameDisplay').classList.remove('hidden');
+}
+
+function startGeneration() {
+  
+    // Send formData to the server endpoint
+    // Example using fetch API
+    fetch(app.test_url + '/broker/start', {
+    method: 'POST',
+    })
+    .then((response) => {
+    // Handle the response from the server
+    console.log("Generation started!");
+    })
+    .catch((error) => {
+    // Handle errors
+    console.error("Error starting generating the values", error);
+    });
+}
+
+function stopGeneration() {
+  
+    // Send formData to the server endpoint
+    // Example using fetch API
+    fetch(app.test_url + '/broker/stop', {
+    method: 'POST',
+    })
+    .then((response) => {
+    // Handle the response from the server
+    console.log("Generation started!");
+    })
+    .catch((error) => {
+    // Handle errors
+    console.error("Error starting generating the values", error);
+    });
+}
+
+function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+  
+    if (fileInput.files.length > 0) {
+      // Prevent the default form submission behavior
+      event.preventDefault();
+  
+      // Upload the selected file to the backend (using FormData)
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+  
+      // Send formData to the server endpoint
+      // Example using fetch API
+      fetch(app.test_url + '/broker/upload_file', {
+        method: 'POST',
+        body: formData,
+      })
+      .then((response) => {
+        // Handle the response from the server
+        console.log("File uploaded successfully!");
+      })
+      .catch((error) => {
+        // Handle errors
+        console.error("Error uploading the file:", error);
+      });
+    } else {
+      // Show an error message to the user, asking them to select a file
+      alert('Please select a file.');
+    }
+}
+
+function updateValues() {
+    const frequency = parseFloat(document.getElementById("frequencyInput").value);
+    const phase = parseFloat(document.getElementById("phaseInput").value);
+    const amplitude = parseFloat(document.getElementById("amplitudeInput").value);
+  
+    // Create an object containing the data to be sent to the server
+    const data = {
+      amplitude: amplitude,
+      frequency: frequency,
+      phase: phase
+    };
+  
+    // Send a POST request to the server using fetch API
+    fetch(app.test_url  + '/broker/update_sinusoidal_parameters', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+      // Handle the server response if needed
+      console.log('Server response:', result);
+    })
+    .catch(error => {
+      // Handle any errors that occurred during the POST request
+      console.error('Error:', error);      
+    });
+}

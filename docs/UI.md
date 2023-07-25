@@ -124,7 +124,8 @@ when a page loads, app.js runs first to:
    var app = {
      local_storage_available: false,
      auth_obj:                null,
-     api_url: "/api/v1"
+     api_url: "/api/v1",
+     test_url: "/test/api/v1"
    };
    ```
 
