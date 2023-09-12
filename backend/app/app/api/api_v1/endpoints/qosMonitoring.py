@@ -12,10 +12,22 @@ from app.db.session import client
 from .utils import add_notifications
 from .qosInformation import qos_reference_match
 from .utils import ReportLogging
+import pika
 
 router = APIRouter()
 router.route_class = ReportLogging
 db_collection= 'QoSMonitoring'
+
+#global variable to read from broker
+change_behavior = False
+parameter_choosen = {}
+
+
+#nested dict keys separated with -
+def signal_param_change(state, param):
+    global change_behavior, parameter_choosen
+    change_behavior = state
+    parameter_choosen = param
 
 @router.get("/{scsAsId}/subscriptions", response_model=List[schemas.AsSessionWithQoSSubscription])
 def read_active_subscriptions(
@@ -159,6 +171,36 @@ def read_subscription(
     #If the document exists then validate the owner
     if not user.is_superuser(current_user) and (retrieved_doc['owner_id'] != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    if change_behavior:
+        # Create a connection to the RabbitMQ server
+        connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+        channel = connection.channel()
+        channel.queue_declare(queue='my_queue')
+
+        global parameter_choosen
+
+        method_frame, header_frame, body = channel.basic_get(queue='my_queue', auto_ack=True)
+        if body is not None:
+
+            keys = parameter_choosen.split("-")
+
+            if len(keys) > 1:
+                current_doc = retrieved_doc
+                last_key = keys[-1]
+                for key in keys[:-1]:
+                    current_doc = current_doc[key]
+
+                current_doc[last_key] = body.decode('utf-8')
+            else:
+                retrieved_doc[parameter_choosen] = body.decode('utf-8')
+
+            crud_mongo.update_new_field(db_mongo, db_collection, subscriptionId, retrieved_doc)
+        else:
+            raise HTTPException(status_code=404, detail="No values to consume.")
+            pass
+
+        connection.close()
 
     retrieved_doc.pop("owner_id")
     http_response = JSONResponse(content=retrieved_doc, status_code=200)
