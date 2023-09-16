@@ -304,44 +304,26 @@ def get_last_notifications(
     return updated_notification
 
 class ReportLogging(APIRoute):
-
     def get_route_handler(self) -> Callable:
-        
         original_route_handler = super().get_route_handler()
-        async def custom_route_handler(request: Request) -> Response:
 
+        async def custom_route_handler(request: Request) -> Response:
             global logs_count
 
-            try:               
-                # Capture Request's Body 
+            try:
                 request_body = {}
-                try: 
+                try:
                     request_body = await request.json()
-                except JSONDecodeError: 
+                except JSONDecodeError:
                     pass
 
-                query_params = {
-                    'scsAsId': None,
-                    'afId': None,
-                    'subscriptionId': None,
-                    'transactionId': None,
-                    'configurationId': None,
-                    'provisioningId': None,
-                    'setId': None,
-                }
-                
-                for param_name in query_params:
-                    if param_name in request.query_params:
-                        query_params[param_name] = request.query_params[param_name]
-
-                # Capture Request's Response
-                response = await original_route_handler(request)   
+                response = await original_route_handler(request)
 
                 extra_fields = {
                     'endpoint': request.url.path,
                     'method': request.method,
                     'request_body': request_body,
-                    **query_params,
+                    **self.get_query_params(request.query_params),
                     'nef_response_code': response.status_code,
                     'nef_response_message': response.body.decode(response.charset).replace('"', "'"),
                 }
@@ -352,44 +334,24 @@ class ReportLogging(APIRoute):
                     'id': logs_count,
                     **extra_fields
                 }
-                
-                listObj = []
-                # Read JSON file
-                with open(settings.REPORT_PATH) as fp:
-                    listObj = json.load(fp)
+
+                listObj = self.read_log_file()
 
                 listObj.append(log_entry)
 
-                with open(settings.REPORT_PATH, 'w') as json_file:
-                    json.dump(listObj, json_file, 
-                        indent=4,  
-                        separators=(',',': '))
+                self.write_log_file(listObj)
 
                 return response
-            except RequestValidationError as exc:
-                status_code = 422 
-
-                query_params = {
-                    'scsAsId': None,
-                    'afId': None,
-                    'subscriptionId': None,
-                    'transactionId': None,
-                    'configurationId': None,
-                    'provisioningId': None,
-                    'setId': None,
-                }
-                            
-                for param_name in query_params:
-                    if param_name in request.query_params:
-                        query_params[param_name] = request.query_params[param_name]
+            except (RequestValidationError, HTTPException) as exc:
+                status_code = 422 if isinstance(exc, RequestValidationError) else exc.status_code
 
                 extra_fields = {
                     'endpoint': request.url.path,
                     'method': request.method,
-                    'request_body': exc.body,
-                    **query_params,
+                    'request_body': exc.body if isinstance(exc, RequestValidationError) else request_body,
+                    **self.get_query_params(request.query_params),
                     'nef_response_code': status_code,
-                    'nef_response_message': exc.errors(),
+                    'nef_response_message': exc.detail if isinstance(exc, HTTPException) else exc.errors(),
                 }
 
                 logs_count += 1
@@ -398,64 +360,38 @@ class ReportLogging(APIRoute):
                     'id': logs_count,
                     **extra_fields
                 }
-                
-                listObj = []
-                # Read JSON file
-                with open(settings.REPORT_PATH) as fp:
-                    listObj = json.load(fp)
+
+                listObj = self.read_log_file()
 
                 listObj.append(log_entry)
 
-                with open(settings.REPORT_PATH, 'w') as json_file:
-                    json.dump(listObj, json_file, 
-                        indent=4,  
-                        separators=(',',': '))
-                
-                raise HTTPException(status_code=status_code, detail= exc.errors())
-            except HTTPException as exc:
-                
-                query_params = {
-                    'scsAsId': None,
-                    'afId': None,
-                    'subscriptionId': None,
-                    'transactionId': None,
-                    'configurationId': None,
-                    'provisioningId': None,
-                    'setId': None,
-                }
-                            
-                for param_name in query_params:
-                    if param_name in request.query_params:
-                        query_params[param_name] = request.query_params[param_name]
+                self.write_log_file(listObj)
 
-                extra_fields = {
-                    'endpoint': request.url.path,
-                    'method': request.method,
-                    'request_body': request_body,
-                    **query_params,
-                    'nef_response_code': exc.status_code,
-                    'nef_response_message': exc.detail,
-                }
-
-                logs_count += 1
-
-                log_entry = {
-                    'id': logs_count,
-                    **extra_fields
-                }
-                
-                listObj = []
-                # Read JSON file
-                with open(settings.REPORT_PATH) as fp:
-                    listObj = json.load(fp)
-
-                listObj.append(log_entry)
-
-                with open(settings.REPORT_PATH, 'w') as json_file:
-                    json.dump(listObj, json_file, 
-                        indent=4,  
-                        separators=(',',': '))
-                
-                raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+                raise HTTPException(status_code=status_code, detail=exc.detail if isinstance(exc, HTTPException) else exc.errors())
 
         return custom_route_handler
+
+    def read_log_file(self):
+        with open(settings.REPORT_PATH) as fp:
+            return json.load(fp)
+
+    def write_log_file(self, listObj):
+        with open(settings.REPORT_PATH, 'w') as json_file:
+            json.dump(listObj, json_file, indent=4, separators=(',', ': '))
+
+    def get_query_params(self, request_query_params):
+        query_params = {
+            'scsAsId': None,
+            'afId': None,
+            'subscriptionId': None,
+            'transactionId': None,
+            'configurationId': None,
+            'provisioningId': None,
+            'setId': None,
+        }
+
+        for param_name in query_params:
+            if param_name in request_query_params:
+                query_params[param_name] = request_query_params[param_name]
+
+        return query_params
