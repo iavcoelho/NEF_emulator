@@ -308,7 +308,6 @@ class ReportLogging(APIRoute):
         original_route_handler = super().get_route_handler()
 
         async def custom_route_handler(request: Request) -> Response:
-            global logs_count
 
             try:
                 request_body = {}
@@ -328,18 +327,7 @@ class ReportLogging(APIRoute):
                     'nef_response_message': response.body.decode(response.charset).replace('"', "'"),
                 }
 
-                logs_count += 1
-
-                log_entry = {
-                    'id': logs_count,
-                    **extra_fields
-                }
-
-                listObj = self.read_log_file()
-
-                listObj.append(log_entry)
-
-                self.write_log_file(listObj)
+                self.update_log_file(extra_fields)
 
                 return response
             except (RequestValidationError, HTTPException) as exc:
@@ -354,18 +342,7 @@ class ReportLogging(APIRoute):
                     'nef_response_message': exc.detail if isinstance(exc, HTTPException) else exc.errors(),
                 }
 
-                logs_count += 1
-
-                log_entry = {
-                    'id': logs_count,
-                    **extra_fields
-                }
-
-                listObj = self.read_log_file()
-
-                listObj.append(log_entry)
-
-                self.write_log_file(listObj)
+                self.update_log_file(extra_fields)
 
                 raise HTTPException(status_code=status_code, detail=exc.detail if isinstance(exc, HTTPException) else exc.errors())
 
@@ -378,6 +355,20 @@ class ReportLogging(APIRoute):
     def write_log_file(self, listObj):
         with open(settings.REPORT_PATH, 'w') as json_file:
             json.dump(listObj, json_file, indent=4, separators=(',', ': '))
+
+    def update_log_file(self, extra_fields):
+        global logs_count
+
+        logs_count += 1
+
+        log_entry = {
+            'id': logs_count,
+            **extra_fields
+        }
+
+        listObj = self.read_log_file()
+        listObj.append(log_entry)
+        self.write_log_file(listObj)
 
     def get_query_params(self, request_query_params):
         query_params = {
