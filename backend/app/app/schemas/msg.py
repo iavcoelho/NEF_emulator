@@ -8,3 +8,4 @@ class SinusoidalParameters(BaseModel):
     amplitude: float
     frequency: float
     phase: float
+    offset: float

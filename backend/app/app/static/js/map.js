@@ -1226,12 +1226,14 @@ function updateValues() {
     const frequency = parseFloat(document.getElementById("frequencyInput").value);
     const phase = parseFloat(document.getElementById("phaseInput").value);
     const amplitude = parseFloat(document.getElementById("amplitudeInput").value);
+    const offset = parseFloat(document.getElementById("offsetInput").value);
   
     // Create an object containing the data to be sent to the server
     const data = {
       amplitude: amplitude,
       frequency: frequency,
-      phase: phase
+      phase: phase,
+      offset: offset
     };
   
     // Send a POST request to the server using fetch API

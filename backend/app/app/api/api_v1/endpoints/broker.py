@@ -18,14 +18,16 @@ class BackgroundTasks(threading.Thread):
         self.amplitude = 10  # Default value
         self.frequency = 0.2  # Default value
         self.phase = 2  # Default value
+        self.offset = 50  # Default value
         self.custom_function = None  # Variable to store the custom function
         self.connection = None
         self.channel = None
 
-    def update_values(self, amplitude, frequency, phase):
+    def update_values(self, amplitude, frequency, phase, offset):
         self.amplitude = amplitude
         self.frequency = frequency
         self.phase = phase
+        self.offset = offset
         self.custom_function = None
 
     def execute_custom_function_from_file_content(self, file_content):
@@ -67,8 +69,8 @@ class BackgroundTasks(threading.Thread):
                     else:
                         # Use the default sinusoidal function to generate numbers
                         values = []
-                        for i in range(10):
-                            value = self.amplitude * math.sin(self.frequency * i + self.phase)
+                        for i in range(20):
+                            value = self.amplitude * math.sin(self.frequency * i + self.phase) + self.offset
                             values.append(value)
 
                     # Publish the generated values to the RabbitMQ queue
