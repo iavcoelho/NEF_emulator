@@ -131,7 +131,7 @@ async def update_sin_function_parameters(msg: SinusoidalParameters):
         return {"msg": "Task is not running. Please start the task first."}
 
     # Update the parameters in the background task
-    background_task.update_values(msg.amplitude, msg.frequency, msg.phase)
+    background_task.update_values(msg.amplitude, msg.frequency, msg.phase, msg.offset)
     return {"msg": "Parameters updated successfully."}
 
 
