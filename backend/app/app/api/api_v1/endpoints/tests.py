@@ -51,6 +51,10 @@ def read_UE_distances(*,
         raise HTTPException(status_code=404, detail="UE not found")
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    if retrieve_ue(supi) == None:
+        raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
+
     return retrieve_ue_distances(supi)
 
 
@@ -66,6 +70,10 @@ def read_UE_losses(*,
         raise HTTPException(status_code=404, detail="UE not found")
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    if retrieve_ue(supi) == None:
+        raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
+
     return retrieve_ue_path_losses(supi)
 
 
@@ -81,6 +89,10 @@ def read_UE_rsrps(*,
         raise HTTPException(status_code=404, detail="UE not found")
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
+    
+    if retrieve_ue(supi) == None:
+        raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
+
     return retrieve_ue_rsrps(supi)
 
 @router.get("/{supi}/handovers")
@@ -95,4 +107,8 @@ def read_UE_handovers(*,
         raise HTTPException(status_code=404, detail="UE not found")
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
+
+    if retrieve_ue(supi) == None:
+        raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
+        
     return retrieve_ue_handovers(supi)
