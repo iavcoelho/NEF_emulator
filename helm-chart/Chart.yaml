@@ -1,0 +1,8 @@
+name: nef-emulator
+description: Helm Chart for NEF emulator
+version: 0.0.1
+apiVersion: v2
+keywords:
+  - nef-emulator
+sources:
+home:

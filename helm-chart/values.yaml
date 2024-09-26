@@ -1,0 +1,113 @@
+# Values for NEF Simulator Helm Chart
+
+# Global configuration
+configName: nef-config
+secretsName: nef-secrets
+
+# Postgres configuration
+postgres:
+  enabled: true
+  name: postgres
+  deployment:
+    image: postgres:12
+    env:
+      - name: PGDATA
+        value: /var/lib/postgresql/data/pgdata
+  service:
+    type: ClusterIP
+    ports:
+      - port: 5432
+        targetPort: 5432
+
+# PgAdmin configuration
+pgadmin:
+  enabled: true
+  name: pgadmin
+  deployment:
+    image: dpage/pgadmin4
+    ports:
+      - containerPort: 5050
+  service:
+    type: ClusterIP
+    ports:
+      - port: 5050
+        targetPort: 5050
+
+# Mongo configuration
+mongo:
+  enabled: true
+  name: mongo
+  deployment:
+    image: mongo:4.4.10
+    ports:
+      - containerPort: 27017
+  service:
+    type: ClusterIP
+    ports:
+      - port: 27017
+        targetPort: 27017
+
+mongoExpress:
+  enabled: true
+  name: mongo-express
+  deployment:
+    image: mongo-express:1.0.0-alpha.4
+    ports:
+      - containerPort: 8081
+  service:
+    type: ClusterIP
+    ports:
+      - port: 8081
+        targetPort: 8081
+        protocol: TCP
+
+# RabbitMQ configuration
+rabbitmq:
+  enabled: true
+  name: rabbitmq
+  deployment:
+    image: rabbitmq:management
+    ports:
+      - containerPort: 5672
+        protocol: TCP
+      - containerPort: 15672
+        protocol: TCP
+  service:
+    type: ClusterIP
+    ports:
+      - name: amqp
+        port: 5672
+        targetPort: 5672
+      - name: http
+        port: 15672
+        targetPort: 15672
+
+# Report configuration
+report:
+  enabled: true
+  name: report
+  deployment:
+    image: localhost:5000/report:latest
+    ports:
+      - containerPort: 3000
+  service:
+    type: LoadBalancer
+    ports:
+      - port: 3000
+        targetPort: 3000
+        protocol: TCP
+
+# Backend configuration
+backend:
+  enabled: true
+  name: backend
+  deployment:
+    image: localhost:5000/backend:latest
+    ports:
+      - containerPort: 80
+  service:
+    type: LoadBalancer
+    ports:
+      - port: 8888
+        targetPort: 80
+        protocol: TCP

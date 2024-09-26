@@ -1,0 +1,46 @@
+{{- if and .Values.report.enabled .Values.backend.enabled .Values.rabbitmq.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.report.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.report.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.report.name }}
+    spec:
+      # Depends on backend
+      initContainers:
+      - name: wait-for-backend
+        image: curlimages/curl:latest
+        args:
+        - /bin/sh
+        - -c
+        - >
+          set -x;
+          while [ $(curl -sw '%{http_code}' "http://{{ .Release.Name }}-{{ .Values.backend.name }}:{{ index .Values.backend.service.ports 0 "port" }}/login" -o /dev/null) -ne 200 ]; do
+            sleep 2;
+          done;
+      containers:
+      - name: {{ .Values.report.name }}
+        image: {{ .Values.report.deployment.image }}
+        {{- if .Values.report.deployment.ports }}
+        ports:
+          {{- toYaml .Values.report.deployment.ports | nindent 12 }}
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: {{ .Release.Name }}-{{ .Values.secretsName }}
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Values.configName }}
+        volumeMounts:
+        - name: shared-data
+          mountPath: /shared
+      volumes:
+      - name: shared-data
+        persistentVolumeClaim:
+          claimName: shared-data
+{{- end }}

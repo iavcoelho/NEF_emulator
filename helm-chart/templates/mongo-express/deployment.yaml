@@ -1,0 +1,50 @@
+{{- if and .Values.mongo.enabled .Values.mongoExpress.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.mongoExpress.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.mongoExpress.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.mongoExpress.name }}
+    spec:
+      # depends on mongo
+      initContainers:
+      - name: wait-for-mongo
+        image: {{ .Values.mongo.deployment.image }}
+        command: ['sh', '-c', 'until mongo --host {{ .Release.Name }}-{{ .Values.mongo.name }}.{{ .Release.Namespace }}.svc.cluster.local --port {{ index .Values.mongo.service.ports 0 "port" }} --eval "print(\"waited for connection\")"; do echo waiting for mongo; sleep 2; done;']
+      containers:
+      - name: {{ .Values.mongoExpress.name }}
+        image: {{ .Values.mongoExpress.deployment.image }}
+        {{- if .Values.mongoExpress.deployment.ports }}
+        ports:
+          {{- toYaml .Values.mongoExpress.deployment.ports | nindent 12 }}
+        {{- end }}
+        env:
+        - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-{{ .Values.configName }}
+              key: MONGO_USER
+        - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-{{ .Values.secretsName }}
+              key: MONGO_PASSWORD
+        - name: ME_CONFIG_MONGODB_URL
+          value: mongodb://$(ME_CONFIG_MONGODB_ADMINUSERNAME):$(ME_CONFIG_MONGODB_ADMINPASSWORD)@{{ .Release.Name }}-{{ .Values.mongo.name }}:{{ index .Values.mongo.service.ports 0 "port" }}/
+        - name: ME_CONFIG_MONGODB_ENABLE_ADMIN
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-{{ .Values.configName }}
+              key: MONGO_EXPRESS_ENABLE_ADMIN
+        envFrom:
+        - secretRef:
+            name: {{ .Release.Name }}-{{ .Values.secretsName }}
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Values.configName }}
+{{- end }}

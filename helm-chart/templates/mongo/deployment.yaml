@@ -1,0 +1,45 @@
+{{ if .Values.mongo.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.mongo.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.mongo.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.mongo.name }}
+    spec:
+      containers:
+      - name: {{ .Values.mongo.name }}
+        image: {{ .Values.mongo.deployment.image }}
+        {{- if .Values.mongo.deployment.ports }}
+        ports:
+          {{- toYaml .Values.mongo.deployment.ports | nindent 12 }}
+        {{- end }}
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-{{ .Values.configName }}
+              key: MONGO_USER
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-{{ .Values.secretsName }}
+              key: MONGO_PASSWORD
+        envFrom:
+        - secretRef:
+            name: {{ .Release.Name }}-{{ .Values.secretsName }}
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Values.configName }}
+        volumeMounts:
+        - name: app-mongo-db-data
+          mountPath: /data/db
+      volumes:
+      - name: app-mongo-db-data
+        persistentVolumeClaim:
+          claimName: app-mongo-db-data
+{{- end }}

@@ -1,0 +1,22 @@
+{{- if .Values.rabbitmq.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.rabbitmq.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.rabbitmq.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.rabbitmq.name }}
+    spec:
+      containers:
+      - name: {{ .Values.rabbitmq.name }}
+        image: {{ .Values.rabbitmq.deployment.image }}
+        {{- if .Values.rabbitmq.deployment.ports }}
+        ports:
+          {{- toYaml .Values.rabbitmq.deployment.ports | nindent 12 }}
+        {{- end }}
+{{- end }}

@@ -1,12 +1,45 @@
 #!/bin/bash
 
-PORT=8888
 URL=http://localhost
+PORT=8888
 REPORT_PORT=3000
+FIRST_SUPERUSER="admin@my-email.com"
+FIRST_SUPERUSER_PASSWORD="pass"
 
-set -a # automatically export all variables
-source .env
-set +a
+# help
+for arg in "$@"; do
+  if [ "$arg" == "--help" ]; then
+    echo "Usage: cmd [-h URL] [-p PORT] [-r REPORT_PORT] [-n FIRST_SUPERUSER] [-u FIRST_SUPERUSER_PASSWORD] [--help]"
+    exit 0
+  fi
+done
+
+# get opts
+while getopts ":h:p:r:n:u:s:" opt; do
+  case ${opt} in
+    h )
+      URL=$OPTARG
+      ;;
+    p )
+      PORT=$OPTARG
+      ;;
+    r )
+      REPORT_PORT=$OPTARG
+      ;;
+    u )
+      FIRST_SUPERUSER=$OPTARG
+      ;;
+    # Secret
+    s )
+      FIRST_SUPERUSER_PASSWORD=$OPTARG
+      ;;
+    \? )
+      echo "Invalid option: -$OPTARG" >&2
+      echo "Usage: cmd [-h URL] [-p PORT] [-r REPORT_PORT] [-n FIRST_SUPERUSER] [-u FIRST_SUPERUSER_PASSWORD] [--help]"
+      exit 1
+      ;;
+  esac
+done
 
 printf '\n==================================================\n'
 printf 'Create Report'
@@ -452,12 +485,12 @@ curl -X 'POST' \
   "path": 2
 }'
 
-printf '\n==================================================\n'
-printf 'Delete Report'
-printf '\n==================================================\n'
+# printf '\n==================================================\n'
+# printf 'Delete Report'
+# printf '\n==================================================\n'
 
 
-curl -X 'DELETE' \
-  "${URL}:${REPORT_PORT}/report" \
+# curl -X 'DELETE' \
+#   "${URL}:${REPORT_PORT}/report" \
 
-printf '\n==================================================\n\n'
+# printf '\n==================================================\n\n'

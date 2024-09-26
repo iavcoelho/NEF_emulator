@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.configName }}
+data:
+  # ENVIROMENT VARIABLES
+  DOMAIN: {{ .Release.Name }}-{{ .Values.backend.name }}
+  DOCKER_IMAGE_BACKEND: "backend"
+  DOCKER_IMAGE_FRONTEND: "frontend"
+  DOCKER_IMAGE_REPORT: "report"
+  DOCKER_IMAGE_PRODUCER: "producer"
+  # Backend
+  SERVER_NAME: ""
+  SERVER_HOST: "{{ .Release.Name }}-{{ .Values.backend.name }}"
+  SERVER_PORT: '{{ index .Values.backend.deployment.ports 0 "containerPort" }}'
+  BACKEND_CORS_ORIGINS: '["https://5g-api-emulator.medianetlab.eu","http://localhost", "http://{{ .Release.Name }}-{{ .Values.backend.name }}"]'
+  PROJECT_NAME: "NEF_Emulator"
+  FIRST_SUPERUSER: "admin@my-email.com"
+  SMTP_TLS: "True"
+  SMTP_PORT: "465"
+  SMTP_HOST: "mail.host.com"
+  SMTP_USER: "user"
+  EMAILS_FROM_EMAIL: "user@my-email.com"
+  SENTRY_DSN: ""
+  USERS_OPEN_REGISTRATION: "true"
+
+  # Postgres
+  # info: POSTGRES_USER value ('postgres') is hard-coded in /pgadmin/servers.json
+  POSTGRES_SERVER: {{ .Release.Name }}-{{ .Values.postgres.name }}
+  POSTGRES_USER: "postgres"
+  POSTGRES_DB: "app"
+
+  # PgAdmin
+  PGADMIN_LISTEN_PORT: "{{ index .Values.pgadmin.deployment.ports 0 "containerPort" }}"
+  PGADMIN_DEFAULT_EMAIL: "admin@my-email.com"
+
+  # Mongo 
+  MONGO_USER: "root"
+
+  # MongoExpress
+  MONGO_EXPRESS_ENABLE_ADMIN: "true"
+
+  #Report
+  REPORT_PATH: "../shared/report.json"
+  
