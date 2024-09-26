@@ -6,6 +6,10 @@ REPORT_PORT=3000
 FIRST_SUPERUSER="admin@my-email.com"
 FIRST_SUPERUSER_PASSWORD="pass"
 
+set -a # automatically export all variables
+source .env
+set +a
+
 # help
 for arg in "$@"; do
   if [ "$arg" == "--help" ]; then
