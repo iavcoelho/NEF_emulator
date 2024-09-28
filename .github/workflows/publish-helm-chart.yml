@@ -1,0 +1,85 @@
+#
+name: Publish Helm Chart
+
+# Configures this workflow to run every time a change is pushed to the branch.
+on:
+  push:
+    branches: ['main']
+
+# Custom environment variables for the workflow.
+env:
+  REGISTRY: atnog-harbor.av.it.pt
+  PROJECT: route25
+
+# Jobs in this workflow.
+jobs:
+  package-and-push-helm-chart:
+    runs-on: ubuntu-24.04
+
+    # Matrix to run job multiple times with different configurations.
+    strategy:
+      fail-fast: true # Stops the job as soon as one of the matrix entries fails.
+      matrix:
+        include:
+          - dir: helm-chart
+    
+    # Steps in this job.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Log in to the Registry
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Helm Chart Package and Push
+        shell: bash
+        run: |
+          # Package the Helm Chart and capture the path
+          CHART_PATH=$(helm package ${{ matrix.dir }} -u | awk '{print $NF}')
+
+          # Run the helm push command and capture both stdout and stderr
+          OUTPUT=$(helm push $CHART_PATH oci://${{ env.REGISTRY }}/${{ env.PROJECT }} 2>&1)
+          echo "Raw Output: $OUTPUT"
+
+          # Check if the helm push command was successful
+          if [ $? -ne 0 ]; then
+              echo "Helm push failed."
+              exit 1
+          fi
+
+          # Extract the Digest from the output
+          DIGEST=$(echo "$OUTPUT" | grep "Digest:" | awk '{print $2}')
+
+          # Extract the Chart Name from the output
+          CHART_NAME=$(echo "$OUTPUT" | grep "Pushed:" | awk '{print $2}' | awk -F '/' '{print $NF}'| cut -d':' -f1)
+
+          # Print the results
+          echo "Digest: $DIGEST"
+          echo "Chart Name: $CHART_NAME"
+
+          # Add tags to the Helm Chart
+          for tag in ${{ github.ref_name == 'main' && 'latest' || '' }} ${{ github.ref_name }} ${{ github.sha }} ; do
+            # if tag is '' or empty, skip the tagging
+            if [ -z "$tag" ]; then
+              continue
+            fi
+
+            echo "Tagging $CHART_NAME with $tag"
+
+            curl -u '${{ secrets.REGISTRY_USERNAME }}:${{ secrets.REGISTRY_PASSWORD }}' -X 'POST' \
+              "https://${{ env.REGISTRY }}/api/v2.0/projects/${{ env.PROJECT }}/repositories/$CHART_NAME/artifacts/$DIGEST/tags" \
+              -H 'accept: application/json' \
+              -H 'Content-Type: application/json' \
+              -d '{
+              "id": 0,
+              "repository_id": 0,
+              "artifact_id": 0,
+              "name": "'$tag'",
+              "immutable": true
+            }'
+
+          done
