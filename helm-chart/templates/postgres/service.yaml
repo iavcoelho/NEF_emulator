@@ -1,0 +1,15 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.postgres.name }}
+spec:
+  type: {{ .Values.mongoExpress.service.type }}
+  {{- if .Values.postgres.service.ports }}
+  ports:
+    {{- toYaml .Values.postgres.service.ports | nindent 4 }}
+  {{- end }}
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.postgres.name }}
+{{- end }}
+

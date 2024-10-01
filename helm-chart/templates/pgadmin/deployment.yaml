@@ -1,0 +1,35 @@
+{{- if and .Values.postgres.enabled .Values.pgadmin.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.pgadmin.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.pgadmin.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.pgadmin.name }}
+    spec:
+      containers:
+      - name: {{ .Values.pgadmin.name }}
+        image: {{ .Values.pgadmin.deployment.image }}
+        {{- if .Values.pgadmin.deployment.ports }}
+        ports:
+          {{- toYaml .Values.pgadmin.deployment.ports | nindent 12 }}
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: {{ .Release.Name }}-{{ .Values.secretsName }}
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Values.configName }}
+        volumeMounts:
+        - name: pgadmin-config
+          mountPath: /pgadmin4/servers.json
+          subPath: servers.json
+      volumes:
+      - name: pgadmin-config
+        configMap:
+          name: {{ .Release.Name }}-{{ .Values.pgadmin.name }}-configmap
+{{- end }}

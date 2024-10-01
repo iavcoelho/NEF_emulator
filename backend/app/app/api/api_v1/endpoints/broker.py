@@ -7,6 +7,7 @@ from fastapi import APIRouter, UploadFile, File
 from app.schemas import SinusoidalParameters
 import ast  # Import the ast module
 from .qosMonitoring import signal_param_change
+import os
 
 router = APIRouter()
 background_task = None
@@ -57,7 +58,7 @@ class BackgroundTasks(threading.Thread):
     def run(self):
         try:
             # Connect to RabbitMQ server
-            self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters(os.environ.get("RABBITMQ_HOST", "rabbitmq")))
             self.channel = self.connection.channel()
             self.channel.queue_declare(queue='my_queue')
 

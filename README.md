@@ -8,6 +8,8 @@
 >This is a local implentation of the NEF emulator proposed by [EVOLVED-5G](https://5g-ppp.eu/evolved-5g-builds-the-first-3gpp-nef-emulator-to-support-smes-on-5g-programmability/).    
 ## ⚙ Setup locally
 
+### Docker Compose
+
 **Host prerequisites**: `docker`, `docker-compose 1.29.2`, `build-essential`\*, `jq`\*\*
 
 After cloning the repository, there are 4 more steps to do. For convinience, we have created a [`Makefile`](Makefile) that contains a command for each step + several common `docker-compose` tasks which you may find handy in the future.
@@ -36,6 +38,19 @@ make db-init
 >\* 💡 Info: *To use the `make` command you need to `apt install build-essential` first. In case you don't want to proceed with this installation, you can head over to the `Makefile` and copy/paste the shell commands that are being used for every step.*
 
 > \*\* 💡 Info: *The shell script used at step 4 (for adding test data) uses `jq` which is a lightweight and flexible command-line JSON processor. You can install it with `apt install jq`*
+
+### k8s
+
+**Host prerequisites**: `docker`, `docker registry`\*, `kubernetes cluster`, `helm`
+
+After cloning the repository, there are more X steps to do. For convinience, we have created a bash script `run-helm.sh` that automatically builds the docker images, pushes them to the docker registry, and installs the helm chart.
+
+```bash
+./run-helm.sh -n <namespace> -r <release-name> -d <docker-registry>
+```
+docker run -d -p 5000:5000 --name registry registry:2.7
+
+>\* 💡 Info: *The default docker registry used in the helm values is a local docker registry created using `docker run -d -p 5000:5000 --name registry registry:2.7`.*
 
 ### Try out your setup
 

@@ -1,0 +1,14 @@
+{{- if and .Values.mongo.enabled .Values.mongoExpress.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.mongoExpress.name }}
+spec:
+  type: {{ .Values.mongoExpress.service.type }}
+  {{ if .Values.mongoExpress.service.ports }}
+  ports:
+    {{- toYaml .Values.mongoExpress.service.ports | nindent 4 }}
+  {{- end }}
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.mongoExpress.name }}
+{{- end }}

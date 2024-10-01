@@ -1,0 +1,21 @@
+{{- if and .Values.postgres.enabled .Values.pgadmin.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.pgadmin.name }}-configmap
+data:
+  servers.json: |
+    {
+      "Servers": {
+          "db": {
+              "Name": "{{ .Release.Name }}-{{ .Values.postgres.name }}",
+              "Group": "Servers",
+              "Port": 5432,
+              "Username": "postgres",
+              "Host": "{{ .Release.Name }}-{{ .Values.postgres.name }}",
+              "SSLMode": "prefer",
+              "MaintenanceDB": "postgres"
+          }
+      }
+    }
+{{- end }}

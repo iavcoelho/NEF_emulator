@@ -13,6 +13,7 @@ from .utils import add_notifications
 from .qosInformation import qos_reference_match
 from .utils import ReportLogging
 import pika
+import os
 
 router = APIRouter()
 router.route_class = ReportLogging
@@ -174,7 +175,7 @@ def read_subscription(
 
     if change_behavior:
         # Create a connection to the RabbitMQ server
-        connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+        connection = pika.BlockingConnection(pika.ConnectionParameters(os.environ.get("RABBITMQ_HOST", "rabbitmq")))
         channel = connection.channel()
         channel.queue_declare(queue='my_queue')
 

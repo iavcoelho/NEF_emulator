@@ -1,0 +1,35 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.postgres.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.postgres.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.postgres.name }}
+    spec:
+      containers:
+      - name: {{ .Values.postgres.name }}
+        image: {{ .Values.postgres.deployment.image }}
+        command: ["docker-entrypoint.sh", "-c", "shared_buffers=256MB", "-c", "max_connections=200"]
+        {{-  if .Values.postgres.deployment.env }}
+        env:
+          {{- toYaml .Values.postgres.deployment.env | nindent 12 }}
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: {{ .Release.Name }}-{{ .Values.secretsName }}
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Values.configName }}
+        volumeMounts:
+        - name: app-postgres-data
+          mountPath: /var/lib/postgresql/data/pgdata
+      volumes:
+      - name: app-postgres-data
+        persistentVolumeClaim:
+          claimName: app-postgres-data
+{{- end }}

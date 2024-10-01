@@ -1,0 +1,57 @@
+{{- if and .Values.backend.enabled .Values.rabbitmq.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.backend.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.backend.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.backend.name }}
+    spec:
+      # depends on rabbitmq
+      initContainers:
+      - name: wait-for-rabbitmq
+        image: busybox
+        command: [ 'sh', '-c', 'until wget http://guest:guest@{{ .Release.Name }}-{{ .Values.rabbitmq.name }}.{{ .Release.Namespace }}.svc.cluster.local:{{ index .Values.rabbitmq.service.ports 1 "port" }}/api/aliveness-test/%2F; do echo waiting for rabbitmq; sleep 2; done;' ]
+      containers:
+      - name: {{ .Values.backend.name }}
+        image: {{ .Values.backend.deployment.image }}
+        command: ["/start-reload.sh"]
+        {{- if .Values.backend.deployment.ports }}
+        ports:
+          {{- toYaml .Values.backend.deployment.ports | nindent 12 }}
+        {{- end }}
+        volumeMounts:
+          # - name: backend-app
+          #   mountPath: /app
+          - name: shared-data
+            mountPath: /shared
+        env:
+          - name: SERVER_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: {{ .Release.Name }}-{{ .Values.configName }}
+                key: DOMAIN
+          - name: SERVER_HOST
+            value: "https://$(SERVER_NAME)"
+          - name: MONGO_URL
+            value: mongodb://{{ .Release.Name }}-{{ .Values.mongo.name }}:{{ index .Values.mongo.service.ports 0 "port" }}/
+          - name: RABBITMQ_HOST
+            value: {{ .Release.Name }}-{{ .Values.rabbitmq.name }}
+        envFrom:
+        - secretRef:
+            name: {{ .Release.Name }}-{{ .Values.secretsName }}
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Values.configName }}
+      volumes:
+        # - name: backend-app
+        #   persistentVolumeClaim:
+        #     claimName: backend-app
+        - name: shared-data
+          persistentVolumeClaim:
+            claimName: shared-data
+{{- end }}

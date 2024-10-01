@@ -1,0 +1,14 @@
+{{- if and .Values.backend.enabled .Values.rabbitmq.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.backend.name }}
+spec:
+  type: {{ .Values.backend.service.type }}
+  {{- if .Values.backend.service.ports }}
+  ports:
+    {{- toYaml .Values.backend.service.ports | nindent 4 }}
+  {{- end }}
+  selector:
+    app: {{ .Release.Name }}-{{ .Values.backend.name }}
+{{- end }}

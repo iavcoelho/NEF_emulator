@@ -1,0 +1,64 @@
+#
+name: Publish Docker images
+
+# Configures this workflow to run every time a change is pushed to the branch.
+on:
+  push:
+    branches: ['main']
+
+# Custom environment variables for the workflow.
+env:
+  REGISTRY: atnog-harbor.av.it.pt
+  PROJECT: route25
+  latest-branch: main
+
+# Jobs in this workflow.
+jobs:
+  build-and-push-docker-images:
+    runs-on: ubuntu-24.04
+
+    # Matrix to run job multiple times with different configurations.
+    strategy:
+      fail-fast: true # Stops the job as soon as one of the matrix entries fails.
+      matrix:
+        include:
+          - dir: backend
+            file: Dockerfile.backend
+            repository: backend
+          - dir: backend
+            file: Dockerfile.report
+            repository: report
+    
+    # Steps in this job.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Log in to the Registry
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5.5.1
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.PROJECT }}/${{ matrix.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=sha
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6.8.0
+        with:
+          context: ${{ matrix.dir }}
+          file: ${{ matrix.dir }}/${{ matrix.file }}
+          tags: | # Tags for the Docker image. latest for the main branch, branch name for the lastest of each branch, and commit hash for each commit.
+            ${{ github.ref_name == env.latest-branch && format('{0}/{1}/{2}:latest', env.REGISTRY, env.PROJECT, matrix.repository) || '' }}
+            ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+  
