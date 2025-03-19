@@ -1,29 +1,29 @@
 import requests, json
 
+from app.schemas.monitoringevent import MonitoringEventReport, MonitoringNotification, MonitoringType, LocationInfo, Point, SupportedGADShapes, GeographicalCoordinates
+
 def location_callback(ue, callbackurl, subscription):
     url = callbackurl
 
-    payload = json.dumps(
-        {
-            "subscription": subscription,
-            "monitoringEventReports": [
-                {
-                    "externalId": ue.get("external_identifier"),
-                    "monitoringType": "LOCATION_REPORTING",
-                    "locationInfo": {
-                        "cellId": ue.get("cell_id_hex"),
-                        "enodeBId": ue.get("gnb_id_hex"),
-                        "geographicArea": {
-                            "shape": "POINT",
-                            "point": {
-                                "lat": ue.get("latitude"),
-                                "lon": ue.get("longitude"),
-                            },
-                        },
-                    },
-                }
-            ],
-        }
+    notification = MonitoringNotification(
+        subscription = subscription,
+        monitoringEventReports = [
+            MonitoringEventReport(
+                externalId = ue.get("external_identifier"),
+                monitoringType = MonitoringType.locationReporting,
+                locationInfo = LocationInfo(
+                    cellId = ue.get("cell_id_hex"),
+                    enodeBId = ue.get("gnb_id_hex"),
+                    geographicArea = Point(
+                        shape = SupportedGADShapes.POINT,
+                        point = GeographicalCoordinates(
+                            lat = ue.get("latitude"),
+                            lon = ue.get("longitude"),
+                        )
+                    )
+                )
+            )
+        ]
     )
     headers = {"accept": "application/json", "Content-Type": "application/json"}
 
@@ -32,7 +32,7 @@ def location_callback(ue, callbackurl, subscription):
     # (i.e., connect timeout means that the server is unreachable and read that the server is reachable but the client does not receive a response within 27 seconds)
 
     response = requests.request(
-        "POST", url, headers=headers, data=payload, timeout=(3.05, 27)
+        "POST", url, headers=headers, data=notification.json(exclude_unset=True), timeout=(3.05, 27)
     )
 
     return response
