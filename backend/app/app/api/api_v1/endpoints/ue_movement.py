@@ -313,44 +313,44 @@ class BackgroundTasks(threading.Thread):
                         gnb = crud.gnb.get(db=self._db, id=cell_now.get("gNB_id"))
                         ues[f"{supi}"]["gnb_id_hex"] = gnb.gNB_id
 
-                        
-                        #Monitoring Event API - Location Reporting
-                        #Retrieve the subscription of the UE by external Id | This could be outside while true but then the user cannot subscribe when the loop runs
-                        if not active_subscriptions.get("location_reporting"):
-                            location_reporting_sub = crud_mongo.read_by_multiple_pairs(db_mongo, "MonitoringEvent", externalId = UE.external_identifier, monitoringType = "LOCATION_REPORTING")
-                            if location_reporting_sub:
-                                active_subscriptions.update({"location_reporting" : True})
+                    
+                    #Monitoring Event API - Location Reporting
+                    #Retrieve the subscription of the UE by external Id | This could be outside while true but then the user cannot subscribe when the loop runs
+                    if not active_subscriptions.get("location_reporting"):
+                        location_reporting_sub = crud_mongo.read_by_multiple_pairs(db_mongo, "MonitoringEvent", externalId = UE.external_identifier, monitoringType = "LOCATION_REPORTING")
+                        if location_reporting_sub:
+                            active_subscriptions.update({"location_reporting" : True})
 
-                        #Validation of subscription    
-                        if active_subscriptions.get("location_reporting"): 
-                            sub_is_valid = monitoring_event_sub_validation(location_reporting_sub, is_superuser, current_user.id, location_reporting_sub.get("owner_id"))    
-                            if sub_is_valid:
+                    #Validation of subscription    
+                    if active_subscriptions.get("location_reporting"): 
+                        sub_is_valid = monitoring_event_sub_validation(location_reporting_sub, is_superuser, current_user.id, location_reporting_sub.get("owner_id"))    
+                        if sub_is_valid:
+                            try:
                                 try:
-                                    try:
-                                        monitoring_callbacks.location_callback(ues[f"{supi}"], location_reporting_sub.get("notificationDestination"), location_reporting_sub.get("link"))
-                                        location_reporting_sub.update({"maximumNumberOfReports" : location_reporting_sub.get("maximumNumberOfReports") - 1})
-                                        crud_mongo.update(db_mongo, "MonitoringEvent", location_reporting_sub.get("_id"), location_reporting_sub)
-                                    except timer.TimerError as ex:
-                                        # logging.critical(ex)
-                                        pass
-                                except requests.exceptions.ConnectionError as ex:
-                                    logging.warning("Failed to send the callback request")
-                                    logging.warning(ex)
-                                    crud_mongo.delete_by_uuid(db_mongo, "MonitoringEvent", location_reporting_sub.get("_id"))
-                                    active_subscriptions.update({"location_reporting" : False})
-                                    continue
-                            else:
+                                    monitoring_callbacks.location_callback(ues[f"{supi}"], location_reporting_sub.get("notificationDestination"), location_reporting_sub.get("link"))
+                                    location_reporting_sub.update({"maximumNumberOfReports" : location_reporting_sub.get("maximumNumberOfReports") - 1})
+                                    crud_mongo.update(db_mongo, "MonitoringEvent", location_reporting_sub.get("_id"), location_reporting_sub)
+                                except timer.TimerError as ex:
+                                    # logging.critical(ex)
+                                    pass
+                            except requests.exceptions.ConnectionError as ex:
+                                logging.warning("Failed to send the callback request")
+                                logging.warning(ex)
                                 crud_mongo.delete_by_uuid(db_mongo, "MonitoringEvent", location_reporting_sub.get("_id"))
                                 active_subscriptions.update({"location_reporting" : False})
-                                logging.warning("Subscription has expired")
-                        #Monitoring Event API - Location Reporting
-                        
-                        #As Session With QoS API - if EVENT_TRIGGER then send callback on handover
-                        if active_subscriptions.get("as_session_with_qos"):
-                            reporting_freq = qos_sub["qosMonInfo"]["repFreqs"]
-                            if "EVENT_TRIGGERED" in reporting_freq:
-                                qos_callback.qos_notification_control(qos_sub, ues[f"{supi}"]["ip_address_v4"], ues.copy(),  ues[f"{supi}"])
-                        #As Session With QoS API - if EVENT_TRIGGER then send callback on handover
+                                continue
+                        else:
+                            crud_mongo.delete_by_uuid(db_mongo, "MonitoringEvent", location_reporting_sub.get("_id"))
+                            active_subscriptions.update({"location_reporting" : False})
+                            logging.warning("Subscription has expired")
+                    #Monitoring Event API - Location Reporting
+                    
+                    #As Session With QoS API - if EVENT_TRIGGER then send callback on handover
+                    if active_subscriptions.get("as_session_with_qos"):
+                        reporting_freq = qos_sub["qosMonInfo"]["repFreqs"]
+                        if "EVENT_TRIGGERED" in reporting_freq:
+                            qos_callback.qos_notification_control(qos_sub, ues[f"{supi}"]["ip_address_v4"], ues.copy(),  ues[f"{supi}"])
+                    #As Session With QoS API - if EVENT_TRIGGER then send callback on handover
 
                 else:
                     # crud.ue.update(db=db, db_obj=UE, obj_in={"Cell_id" : None})
