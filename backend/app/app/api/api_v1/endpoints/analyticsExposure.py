@@ -1,4 +1,8 @@
 from typing import Any, List
+
+from requests import status_codes
+from app.schemas.analyticsExposure import LocationArea5G, UeLocationInfo, AnalyticsEvent
+from app.schemas.monitoringevent import GeographicArea, GeographicalCoordinates, Point
 from fastapi import APIRouter, Depends, HTTPException, Path, Response, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -180,3 +184,53 @@ def delete_subscription(
     
     
     
+
+
+@router.post("/{afId}/fetch")
+def fetch_analytics(
+    *,
+    db: Session = Depends(deps.get_db),
+    afId: str = Path(
+        ..., title="The ID of the Netapp that is fetching analytics", example="myNetapp"
+    ),
+    item_in: schemas.analyticsExposure.AnalyticsRequest,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    http_request: Request,
+) -> Any:
+
+    db_mongo = client.fastapi
+
+    if item_in.analyEvent != AnalyticsEvent.ueMobility:
+        raise HTTPException(
+            status_code=501, detail="This Analytics Event has not been implemented"
+        )
+
+    if not (
+        item_in.tgtUe
+        and any(
+            [item_in.tgtUe.gpsi, item_in.tgtUe.anyUeInd, item_in.tgtUe.exterGroupId]
+        )
+    ):
+        raise HTTPException(status_code=404, detail="No Target UE Specified")
+
+    if not item_in.tgtUe.gpsi:
+        raise HTTPException(status_code=501, detail="Not Implemented")
+
+    try:
+        user_equipment = ue.get_externalId(
+            db, externalId=item_in.tgtUe.gpsi, owner_id=current_user.id
+        )
+
+    except Exception as ex:
+        raise HTTPException(status_code=404, detail="The current device was not found")
+
+    print(user_equipment)
+    point = Point(
+        shape="POINT",
+        point=GeographicalCoordinates(
+            lat=user_equipment.latitude, lon=user_equipment.longitude
+        ),
+    )
+    loc = LocationArea5G(geographicAreas=[point])
+    response = UeLocationInfo(loc=loc)
+    return response

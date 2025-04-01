@@ -1,5 +1,6 @@
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
+from app.schemas.monitoringevent import CivicAddress, GeographicArea
 from pydantic import BaseModel, Field, IPvAnyAddress, AnyHttpUrl, constr
 from enum import Enum
 from .commonData import Snssai, TimeWindow, FlowInfo, Ecgi, Ncgi, GlobalRanNodeId, Tai, UserLocation, RatType, QosResourceType, AnalyticsSubset, PartitioningCriteria, NotificationFlag, WebsockNotifConfig
@@ -487,11 +488,65 @@ class AnalyticsEvent(str, Enum):
     dnPerformance = "DN_PERFORMANCE" 
     serviceExperience = "SERVICE_EXPERIENCE"
 
+
+class GeographicalArea(ExtraBaseModel):
+    civicAddress: Optional[CivicAddress] = None
+    shapes: Optional[GeographicArea] = None
+
+
+class LocationArea5G(ExtraBaseModel):
+    geographicAreas: Optional[List[GeographicArea]] = Field(
+        None,
+        description="Identifies a list of geographic area of the user where the UE is located.",
+        min_items=0,
+    )
+    civicAddresses: Optional[List[CivicAddress]] = Field(
+        None,
+        description="Identifies a list of civic addresses of the user where the UE is located.",
+        min_items=0,
+    )
+    nwAreaInfo: Optional[NetworkAreaInfo] = None
+
+
+class Supi(ExtraBaseModel):
+    __root__: constr(regex=r"^(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+|.+)$") = Field(
+        ...,
+        description='String identifying a Supi that shall contain either an IMSI, a network specific identifier,\na Global Cable Identifier (GCI) or a Global Line Identifier (GLI) as specified in clause \n2.2A of 3GPP TS 23.003. It shall be formatted as follows\n - for an IMSI "imsi-<imsi>", where <imsi> shall be formatted according to clause 2.2\n   of 3GPP TS 23.003 that describes an IMSI.\n - for a network specific identifier "nai-<nai>, where <nai> shall be formatted\n   according to clause 28.7.2 of 3GPP TS 23.003 that describes an NAI.\n - for a GCI "gci-<gci>", where <gci> shall be formatted according to clause 28.15.2\n   of 3GPP TS 23.003.\n - for a GLI "gli-<gli>", where <gli> shall be formatted according to clause 28.16.2 of\n   3GPP TS 23.003.To enable that the value is used as part of an URI, the string shall\n   only contain characters allowed according to the "lower-with-hyphen" naming convention\n   defined in 3GPP TS 29.501.\n',
+    )
+
+
+class Gpsi(ExtraBaseModel):
+    __root__: constr(regex=r"^(msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|.+)$") = Field(
+        ...,
+        description="String identifying a Gpsi shall contain either an External Id or an MSISDN.  It shall be formatted as follows -External Identifier= \"extid-'extid', where 'extid'  shall be formatted according to clause 19.7.2 of 3GPP TS 23.003 that describes an  External Identifier. \n",
+    )
+
+
+class GeoDistributionInfo1(ExtraBaseModel):
+    loc: UserLocation
+    supis: List[Supi] = Field(..., min_items=1)
+    gpsis: Optional[List[Gpsi]] = Field(None, min_items=1)
+
+
+class GeoDistributionInfo2(ExtraBaseModel):
+    loc: UserLocation
+    supis: Optional[List[Supi]] = Field(None, min_items=1)
+    gpsis: List[Gpsi] = Field(..., min_items=1)
+
+
+class GeoDistributionInfo(ExtraBaseModel):
+    __root__: Union[GeoDistributionInfo1, GeoDistributionInfo2] = Field(
+        ..., description="Represents the geographical distribution of the UEs."
+    )
+
+
 class UeLocationInfo(ExtraBaseModel):
-    """Represents a UE location information."""
-    # loc: LocationArea5G
+    loc: LocationArea5G
+    geoLoc: Optional[GeographicalArea] = None
     ratio: int = Field(None, description="Expressed in percent", ge=1, le=100)
     confidence: int = Field(None, description="", ge=0)
+    geoDistrInfos: Optional[List[GeoDistributionInfo]] = Field(None, min_items=1)
+
 
 class UeMobilityExposure(ExtraBaseModel):
     """Represents a UE mobility information."""

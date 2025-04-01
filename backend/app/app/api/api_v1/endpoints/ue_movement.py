@@ -180,7 +180,12 @@ class BackgroundTasks(threading.Thread):
 
             while True:
                 try:
-                    # UE = crud.ue.update_coordinates(db=db, lat=points[current_position_index]["latitude"], long=points[current_position_index]["longitude"], db_obj=UE)
+                    crud.ue.update_coordinates(
+                        db=self._db,
+                        lat=ues[f"{supi}"]["latitude"],
+                        long=ues[f"{supi}"]["longitude"],
+                        db_obj=UE,
+                    )
                     # cell_now = check_distance(UE.latitude, UE.longitude, json_cells) #calculate the distance from all the cells
                     ues[f"{supi}"]["latitude"] = points[current_position_index]["latitude"]
                     ues[f"{supi}"]["longitude"] = points[current_position_index]["longitude"]
