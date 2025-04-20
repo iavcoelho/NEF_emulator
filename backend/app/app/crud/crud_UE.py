@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
@@ -29,7 +29,7 @@ class CRUD_UE(CRUDBase[UE, UECreate, UEUpdate]):
             .all()
         )
 
-    def get_supi(self, db: Session, supi: str) -> UE:
+    def get_supi(self, db: Session, supi: str) -> Optional[UE]:
         return db.query(self.model).filter(self.model.supi == supi).first()
 
     def get_ipv4(
