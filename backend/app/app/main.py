@@ -28,7 +28,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # ================================= Sub Application - Northbound APIs =================================
 
-nefapi = FastAPI(title="Northbound APIs", openapi_prefix="/nef")
+nefapi = FastAPI(title="Northbound APIs")
 nefapi.include_router(nef_router, prefix=settings.API_V1_STR)
 app.mount("/nef", nefapi)
 
@@ -43,7 +43,7 @@ async def add_process_time_header(request: Request, call_next):
 
 # ================================= Sub Application - Northbound APIs =================================
 
-testapi = FastAPI(title="Test APIs", openapi_prefix="/test")
+testapi = FastAPI(title="Test APIs")
 testapi.include_router(tests_router, prefix=settings.API_V1_STR)
 app.mount("/test", testapi)
 
