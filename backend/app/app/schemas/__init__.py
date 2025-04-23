@@ -7,7 +7,6 @@ from .Cell import Cell, CellCreate, CellInDB, CellUpdate
 from .UE import UE, UECreate, UEUpdate, Speed, ue_path, UEhex
 from .commonData import Snssai, TimeWindow, FlowInfo, Ecgi, Ncgi, GlobalRanNodeId, Tai, UserLocation, RatType, QosResourceType, AnalyticsSubset, PartitioningCriteria, NotificationFlag, WebsockNotifConfig
 from .monitoringevent import MonitoringEventSubscriptionCreate, MonitoringEventSubscription, MonitoringEventReport, MonitoringEventReportReceived, MonitoringNotification
-from .qosMonitoring import AsSessionWithQoSSubscriptionCreate, AsSessionWithQoSSubscription, UserPlaneNotificationData
 from .resourceManagementOfBdt import Bdt, BdtCreate, BdtPatch, ExNotification
 from .trafficInfluence import TrafficInfluSub, TrafficInfluSubCreate, EventNotification
 from .chargeableParty import ChargeableParty, ChargeablePartyCreate
@@ -18,4 +17,5 @@ from .npConfiguration import NpConfiguration, NpConfigurationCreate, Configurati
 from .racsProvisioning import RacsProvisioningData, RacsProvisioningDataCreate
 from .niddConfigurationTrigger import NiddConfigurationTrigger, NiddConfigurationTriggerReply
 from .analyticsExposure import AnalyticsExposureSubscCreate, AnalyticsEventSubsc, AnalyticsExposureSubsc, AnalyticsEventNotification
-from .utils import scenario, ExtraBaseModel
+from .utils import ExtraBaseModel
+from .scenario import scenario
