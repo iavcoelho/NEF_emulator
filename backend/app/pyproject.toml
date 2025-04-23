@@ -25,6 +25,7 @@ pytest = ">6"
 python-jose = {extras = ["cryptography"], version = "^3.1.0"}
 aiofiles = "^0.6.0"
 pika= "1.2.0"
+httpx = "^0.28.1"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.15.0"
