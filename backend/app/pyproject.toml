@@ -7,15 +7,15 @@ authors = ["Admin <admin@example.com>"]
 [tool.poetry.dependencies]
 python = "^3.9.7"
 uvicorn = "^0.17.6"
-fastapi = "^0.78.0"
+fastapi = "^0.99.0"
 pymongo = "^4.1.0"
 python-multipart = "^0.0.5"
 email-validator = "^1.0.5"
 requests = "^2.26.0"
 passlib = {extras = ["bcrypt"], version = "^1.7.2"}
 tenacity = "^6.1.0"
-pydantic = "^1.4"
-emails = "^0.5.15"
+pydantic = "^1.10"
+emails = "^0.6"
 raven = "^6.10.0"
 gunicorn = "^20.1.0"
 jinja2 = "3.0.3"
@@ -26,9 +26,9 @@ python-jose = {extras = ["cryptography"], version = "^3.1.0"}
 aiofiles = "^0.6.0"
 pika= "1.2.0"
 
-[tool.poetry.dev-dependencies]
-mypy = "^0.770"
-black = "^19.10b0"
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.15.0"
+black = "^25.1.0"
 isort = "^4.3.21"
 autoflake = "^1.3.1"
 flake8 = "^3.7.9"
