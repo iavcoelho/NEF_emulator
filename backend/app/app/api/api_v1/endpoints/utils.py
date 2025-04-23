@@ -1,20 +1,25 @@
+import json
+import logging
+import requests
 from datetime import datetime
-import logging, requests, json
-from typing import Any, Callable
+from json import JSONDecodeError
+
+from typing import Any, Callable, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException, RequestValidationError
 from sqlalchemy.orm.session import Session
+from pydantic import BaseModel
+from fastapi.routing import APIRoute
+
 from app import models, schemas, crud
 from app.api import deps
 from app.schemas import monitoringevent, UserPlaneNotificationData, resourceManagementOfBdt
-from pydantic import BaseModel
+from app.core.config import settings
+from app.schemas.commonData import SupportedFeatures
 from app.api.api_v1.endpoints.paths import get_random_point
 from app.api.api_v1.endpoints.ue_movement import retrieve_ue_state
-from fastapi.routing import APIRoute
-from json import JSONDecodeError
-from app.core.config import settings
 
 #List holding notifications from 
 event_notifications = []
@@ -386,3 +391,16 @@ class ReportLogging(APIRoute):
                 query_params[param_name] = request_query_params[param_name]
 
         return query_params
+
+def decode_supported_features(supported_features: SupportedFeatures) -> int:
+    # Pad the string with an extra 0 if necessary for hex processing
+    if len(supported_features) % 2 != 0:
+        supported_features = "0" + supported_features
+
+    hex_bytes = bytes.fromhex(supported_features)
+    return int.from_bytes(hex_bytes, byteorder="big")
+
+def encode_supported_features(supported_features: int) -> SupportedFeatures:
+    hex_bytes_length = (supported_features.bit_length() + 7) // 8
+    hex_bytes = supported_features.to_bytes(hex_bytes_length, byteorder='big')
+    return hex_bytes.hex()
