@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 URL=http://localhost
 PORT=8888
@@ -410,6 +410,7 @@ curl -X 'POST' \
   "ip_address_v4": "10.0.0.1",
   "ip_address_v6": "0:0:0:0:0:0:0:1",
   "mac_address": "22-00-00-00-00-01",
+  "msisdn": "2020100000001",
   "dnn": "province1.mnc01.mcc202.gprs",
   "mcc": 202,
   "mnc": 1,
@@ -431,6 +432,7 @@ curl -X 'POST' \
   "ip_address_v4": "10.0.0.2",
   "ip_address_v6": "0:0:0:0:0:0:0:2",
   "mac_address": "22-00-00-00-00-02",
+  "msisdn": "2020100000002",
   "dnn": "province1.mnc01.mcc202.gprs",
   "mcc": 202,
   "mnc": 1,
@@ -452,6 +454,7 @@ curl -X 'POST' \
   "ip_address_v4": "10.0.0.3",
   "ip_address_v6": "0:0:0:0:0:0:0:3",
   "mac_address": "22-00-00-00-00-03",
+  "msisdn": "2020100000003",
   "dnn": "province1.mnc01.mcc202.gprs",
   "mcc": 202,
   "mnc": 1,
