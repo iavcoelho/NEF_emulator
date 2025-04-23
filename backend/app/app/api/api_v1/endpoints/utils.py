@@ -27,8 +27,14 @@ counter = 0
 
 logs_count = 0
 
-def add_notifications(request: Request, response: JSONResponse, is_notification: bool):
-
+def add_notifications(
+    request: Request,
+    response: Optional[JSONResponse],
+    is_notification: bool,
+    *,
+    # The status code if no response was provided
+    status_code: int = 204
+):
     global counter
 
     json_data = {}
@@ -61,11 +67,11 @@ def add_notifications(request: Request, response: JSONResponse, is_notification:
         req_body = req_body.replace(' ', '')
         json_data["request_body"] = req_body
 
-    json_data["response_body"] = response.body.decode("utf-8")  
+    json_data["response_body"] = response.body.decode("utf-8") if response is not None else ""
     json_data["endpoint"] = endpoint
     json_data["serviceAPI"] = serviceAPI
     json_data["method"] = request.method    
-    json_data["status_code"] = response.status_code
+    json_data["status_code"] = response.status_code if response is not None else status_code
     json_data["isNotification"] = is_notification
     json_data["timestamp"] = datetime.now()
 
