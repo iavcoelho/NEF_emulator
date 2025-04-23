@@ -1,7 +1,9 @@
-from typing import Optional
+from typing import Optional, Annotated
 from enum import Enum
-from pydantic import BaseModel, constr, confloat, IPvAnyAddress
-from pydantic.fields import Field
+from pydantic import BaseModel, IPvAnyAddress, Field, constr, confloat
+
+from app.schemas.commonData import Msisdn
+from typing_extensions import Annotated
 
 class Speed(str, Enum):
     stationary = "STATIONARY"
@@ -15,6 +17,7 @@ class UEBase(BaseModel):
     ip_address_v4: Optional[IPvAnyAddress] = Field(default='10.0.0.0', description="String identifying an Ipv4 address")    
     ip_address_v6: Optional[IPvAnyAddress] = Field(default="0:0:0:0:0:0:0:0", description="String identifying an Ipv6 address. Default value ::1/128 (loopback)")
     mac_address: constr(regex=r'^([0-9a-fA-F]{2})((-[0-9a-fA-F]{2}){5})$') = '22-00-00-00-00-00'
+    msisdn: Annotated[Optional[Msisdn], Field(description="String identifying a phone number (MSISDN)")] = "2020100000000"
     dnn: Optional[str] = Field(default='province1.mnc01.mcc202.gprs', description="String identifying the Data Network Name (i.e., Access Point Name in 4G). For more information check clause 9A of 3GPP TS 23.003")
     mcc: Optional[int] = Field(default=202, description="Mobile Country Code (MCC) part of the Public Land Mobile Network (PLMN), comprising 3 digits, as defined in clause 9.3.3.5 of 3GPP TS 38.413")
     mnc: Optional[int] = Field(default=1, description="Mobile Network Code (MNC) part of the Public Land Mobile Network (PLMN), comprising 2 or 3 digits, as defined in clause 9.3.3.5 of 3GPP TS 38.413")

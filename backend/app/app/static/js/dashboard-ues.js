@@ -403,6 +403,7 @@ function ui_add_btn_listeners_for_UEs_CUD_operations() {
           ip_address_v4       : $('#add_UE_ipv4').val(),
           ip_address_v6       : $('#add_UE_ipv6').val(),
           mac_address         : $('#add_UE_mac').val(),
+          msisdn              : $('#add_UE_msisdn').val(),
           mcc                 : $('#add_UE_mcc').val(),
           mnc                 : $('#add_UE_mnc').val(),
           dnn                 : $('#add_UE_dnn').val(),
@@ -444,6 +445,7 @@ function ui_add_btn_listeners_for_UEs_CUD_operations() {
         edit_UE_tmp_obj.ip_address_v4 = $('#edit_UE_ipv4').val();
         edit_UE_tmp_obj.ip_address_v6 = $('#edit_UE_ipv6').val();
         edit_UE_tmp_obj.mac_address   = $('#edit_UE_mac').val();
+        edit_UE_tmp_obj.msisdn        = $('#edit_UE_msisdn').val();
 
         // location & path
         edit_UE_tmp_obj.path_id = assign_path_id;
@@ -496,6 +498,7 @@ function ui_show_edit_UE_modal( UE_supi ) {
     $('#edit_UE_ipv4').val( edit_UE_tmp_obj.ip_address_v4 );
     $('#edit_UE_ipv6').val( edit_UE_tmp_obj.ip_address_v6 );
     $('#edit_UE_mac').val( edit_UE_tmp_obj.mac_address );
+    $('#edit_UE_msisdn').val( edit_UE_tmp_obj.msisdn );
     $('#edit_UE_gNB').val( db_ID_to_gNB_id[edit_UE_tmp_obj.gNB_id] );
 
     $('#edit_UE_dnn').val( edit_UE_tmp_obj.dnn );

@@ -8,9 +8,7 @@ from app.schemas.UE import UECreate, UEUpdate
 
 
 class CRUD_UE(CRUDBase[UE, UECreate, UEUpdate]):
-    def create_with_owner(
-        self, db: Session, *, obj_in: UECreate, owner_id: int
-    ) -> UE:
+    def create_with_owner(self, db: Session, *, obj_in: UECreate, owner_id: int) -> UE:
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = self.model(**obj_in_data, owner_id=owner_id)
         db.add(db_obj)
@@ -32,56 +30,54 @@ class CRUD_UE(CRUDBase[UE, UECreate, UEUpdate]):
     def get_supi(self, db: Session, supi: str) -> Optional[UE]:
         return db.query(self.model).filter(self.model.supi == supi).first()
 
-    def get_ipv4(
-        self, db: Session, *, ipv4: str, owner_id: int
-    ) -> UE:
+    def get_supi_multi(self, db: Session, supis: List[str]) -> List[UE]:
+        return db.query(self.model).filter(self.model.supi.in_(supis)).all()
+
+    def get_ipv4(self, db: Session, *, ipv4: str, owner_id: int) -> Optional[UE]:
         return (
             db.query(self.model)
             .filter(UE.ip_address_v4 == ipv4, UE.owner_id == owner_id)
             .first()
         )
 
-    def get_ipv6(
-        self, db: Session, *, ipv6: str, owner_id: int
-    ) -> UE:
+    def get_ipv6(self, db: Session, *, ipv6: str, owner_id: int) -> Optional[UE]:
         return (
             db.query(self.model)
             .filter(UE.ip_address_v6 == ipv6, UE.owner_id == owner_id)
             .first()
         )
 
-    def get_mac(
-        self, db: Session, *, mac: str, owner_id: int
-    ) -> UE:
+    def get_mac(self, db: Session, *, mac: str, owner_id: int) -> Optional[UE]:
         return (
             db.query(self.model)
             .filter(UE.mac_address == mac, UE.owner_id == owner_id)
             .first()
         )
 
+    def get_msisdn(self, db: Session, *, msisdn: str, owner_id: int) -> Optional[UE]:
+        return (
+            db.query(self.model)
+            .filter(UE.msisdn == msisdn, UE.owner_id == owner_id)
+            .first()
+        )
+
     def get_externalId(
         self, db: Session, *, externalId: str, owner_id: int
-    ) -> UE:
+    ) -> Optional[UE]:
         return (
             db.query(self.model)
             .filter(UE.external_identifier == externalId, UE.owner_id == owner_id)
             .first()
         )
-        
-    def get_by_Cell(
-        self, db: Session, *, cell_id: int
-    ) -> List[UE]:
-        return (
-            db.query(self.model)
-            .filter(UE.Cell_id == cell_id)
-            .all()
-        )
+
+    def get_by_Cell(self, db: Session, *, cell_id: int) -> List[UE]:
+        return db.query(self.model).filter(UE.Cell_id == cell_id).all()
 
     def update_coordinates(
         self, db: Session, *, lat: float, long: float, db_obj: UE
     ) -> UE:
-        setattr(db_obj, 'latitude', lat)
-        setattr(db_obj, 'longitude', long)
+        setattr(db_obj, "latitude", lat)
+        setattr(db_obj, "longitude", long)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
