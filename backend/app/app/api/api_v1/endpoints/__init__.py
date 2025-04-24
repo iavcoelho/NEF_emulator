@@ -7,7 +7,7 @@ from .gNB import router
 from .Cell import router
 from .UE import router
 from .qosInformation import router
-from .qosMonitoring import router, signal_param_change
+from .afSessionWithQoS import router
 from .monitoringevent import router
 from .bdtManagement import router
 from .trafficInfluence import router
