@@ -1,32 +1,14 @@
-from typing import Any
+from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
-from fastapi.responses import JSONResponse
-from pymongo.database import Database
 from sqlalchemy.orm.session import Session
 from app.db.session import client
 from app import models
 from app.api import deps
-from app.core.config import qosSettings
+from app.core.config import QoSProfile, qosSettings
 from app.crud import crud_mongo, user, gnb
 
-def qos_reference_match(qos_reference):
-    
-    qos_standardized = qosSettings.retrieve_settings()
-    qos_characteristics = {}
-        
-    #Load the standardized 5qi values
-    qos_5qi = qos_standardized.get('5qi')
-
-    #Find the matched 5qi value
-    for q in qos_5qi:
-        if q.get('value') == qos_reference:
-            qos_characteristics = q.copy()
-            # print(f"Inside qos_reference_match at qosInformation.py {qos_characteristics}")
-    
-    if not qos_characteristics:
-        raise HTTPException(status_code=400, detail=f"The 5QI (qosReference) {qos_reference} does not exist")
-    else:
-        return qos_characteristics
+def qos_reference_match(qos_reference: str) -> Optional[QoSProfile]:
+    return qosSettings.get_qos_profile(qos_reference)
 
 router = APIRouter()
 
@@ -93,5 +75,3 @@ def read_qos_active_rules(
     
     
     
-
-
