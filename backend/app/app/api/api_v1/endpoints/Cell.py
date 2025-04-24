@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.api import deps
-from app.api.api_v1.endpoints.utils import retrieve_ue_state
+from app.api.api_v1.endpoints.ue_movement import retrieve_ue_state
 from .utils import ReportLogging
 
 router = APIRouter()
