@@ -1,7 +1,9 @@
-import threading, logging, time, requests
+import threading
+import logging
+import time
+import requests
 from fastapi import APIRouter, Path, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
-from pymongo import MongoClient
 from typing import Any
 from app import crud, tools, models
 from app.crud import crud_mongo
@@ -11,9 +13,8 @@ from app.tools import qos_callback
 from app.db.session import SessionLocal, client
 from app.api import deps
 from app.schemas import Msg
+from app.schemas.afSessionWithQos import AsSessionWithQoSSubscription
 from app.tools import monitoring_callbacks, timer
-from sqlalchemy.orm import Session
-import pika
 
 #Dictionary holding threads that are running per user id.
 threads = {}
@@ -224,7 +225,7 @@ class BackgroundTasks(threading.Thread):
                                     
                                     loss_of_connectivity_sub.update({"maximumNumberOfReports" : loss_of_connectivity_sub.get("maximumNumberOfReports") - 1})
                                     crud_mongo.update(db_mongo, "MonitoringEvent", loss_of_connectivity_sub.get("_id"), loss_of_connectivity_sub)
-                            except timer.TimerError as ex:
+                            except timer.TimerError:
                                 # logging.critical(ex)
                                 pass
                         except requests.exceptions.ConnectionError as ex:
@@ -241,20 +242,24 @@ class BackgroundTasks(threading.Thread):
 
                 #As Session With QoS API - search for active subscription in db
                 if not active_subscriptions.get("as_session_with_qos"):
-                    qos_sub = crud_mongo.read(db_mongo, 'QoSMonitoring', 'ipv4Addr', UE.ip_address_v4)
-                    if qos_sub:
-                        active_subscriptions.update({"as_session_with_qos" : True})
-                        reporting_freq = qos_sub["qosMonInfo"]["repFreqs"]
-                        reporting_period = qos_sub["qosMonInfo"]["repPeriod"]
-                        if "PERIODIC" in reporting_freq:
-                            rt = timer.RepeatedTimer(reporting_period, qos_callback.qos_notification_control, qos_sub, ues[f"{supi}"]["ip_address_v4"], ues.copy(),  ues[f"{supi}"])
-                            # qos_callback.qos_notification_control(qos_sub, ues[f"{supi}"]["ip_address_v4"], ues.copy(),  ues[f"{supi}"])
+                    filters = {"ues": UE.supi}
+                    if not is_superuser:
+                        filters["owner_id"] = current_user.id
+                    qos_sub = db_mongo["QoSMonitoring"].find_one(
+                        filters,
+                        projection={"_id": False, "subscription": True}
+                    )
 
+                    if qos_sub is not None:
+                        qos_sub = AsSessionWithQoSSubscription.parse_obj(qos_sub["subscription"])
+                        if qos_sub.qosMonInfo is not None:
+                            active_subscriptions.update({"as_session_with_qos" : True})
+                            reporting_freq = qos_sub.qosMonInfo.repFreqs
+                            reporting_period = qos_sub.qosMonInfo.repPeriod
+                            if "PERIODIC" in reporting_freq:
+                                rt = timer.RepeatedTimer(reporting_period, qos_callback.qos_notification_control, qos_sub, ues.copy(), ues[f"{supi}"])
+                                # qos_callback.qos_notification_control(qos_sub, ues[f"{supi}"]["ip_address_v4"], ues.copy(),  ues[f"{supi}"])
 
-                #If the document exists then validate the owner
-                if not is_superuser and (qos_sub['owner_id'] != current_user.id):
-                    logging.warning("Not enough permissions")
-                    active_subscriptions.update({"as_session_with_qos" : False})
                 #As Session With QoS API - search for active subscription in db
 
                 if cell_now != None:
@@ -263,7 +268,7 @@ class BackgroundTasks(threading.Thread):
                         loss_of_connectivity_ack = "FALSE"
                         if rt is not None:
                             rt.start()
-                    except timer.TimerError as ex:
+                    except timer.TimerError:
                         # logging.critical(ex)
                         pass
 
@@ -289,7 +294,7 @@ class BackgroundTasks(threading.Thread):
                                             monitoring_callbacks.ue_reachability_callback(ues[f"{supi}"], ue_reachability_sub.get("notificationDestination"), ue_reachability_sub.get("link"), ue_reachability_sub.get("reachabilityType"))
                                             ue_reachability_sub.update({"maximumNumberOfReports" : ue_reachability_sub.get("maximumNumberOfReports") - 1})
                                             crud_mongo.update(db_mongo, "MonitoringEvent", ue_reachability_sub.get("_id"), ue_reachability_sub)
-                                        except timer.TimerError as ex:
+                                        except timer.TimerError:
                                             # logging.critical(ex)
                                             pass
                                     except requests.exceptions.ConnectionError as ex:
@@ -335,7 +340,7 @@ class BackgroundTasks(threading.Thread):
                                     monitoring_callbacks.location_callback(ues[f"{supi}"], location_reporting_sub.get("notificationDestination"), location_reporting_sub.get("link"))
                                     location_reporting_sub.update({"maximumNumberOfReports" : location_reporting_sub.get("maximumNumberOfReports") - 1})
                                     crud_mongo.update(db_mongo, "MonitoringEvent", location_reporting_sub.get("_id"), location_reporting_sub)
-                                except timer.TimerError as ex:
+                                except timer.TimerError:
                                     # logging.critical(ex)
                                     pass
                             except requests.exceptions.ConnectionError as ex:
@@ -352,9 +357,9 @@ class BackgroundTasks(threading.Thread):
                     
                     #As Session With QoS API - if EVENT_TRIGGER then send callback on handover
                     if active_subscriptions.get("as_session_with_qos"):
-                        reporting_freq = qos_sub["qosMonInfo"]["repFreqs"]
+                        reporting_freq = qos_sub.qosMonInfo.repFreqs
                         if "EVENT_TRIGGERED" in reporting_freq:
-                            qos_callback.qos_notification_control(qos_sub, ues[f"{supi}"]["ip_address_v4"], ues.copy(),  ues[f"{supi}"])
+                            qos_callback.qos_notification_control(qos_sub, ues.copy(), ues[f"{supi}"])
                     #As Session With QoS API - if EVENT_TRIGGER then send callback on handover
 
                 else:
@@ -363,7 +368,7 @@ class BackgroundTasks(threading.Thread):
                         t.start()
                         if rt is not None:
                             rt.stop()
-                    except timer.TimerError as ex:
+                    except timer.TimerError:
                         # logging.critical(ex)
                         pass
 
