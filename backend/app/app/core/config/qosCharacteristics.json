@@ -1,10 +1,10 @@
 {
   "QCI_1_voice": {
-    "uplinkBitRate": 10,
-    "downlinkBitRate": 10
+    "uplinkBitRate": 100000,
+    "downlinkBitRate": 100000
   },
   "QCI_2_voice": {
-    "uplinkBitRate": 20,
-    "downlinkBitRate": 20
+    "uplinkBitRate": 400000,
+    "downlinkBitRate": 400000
   }
 }
