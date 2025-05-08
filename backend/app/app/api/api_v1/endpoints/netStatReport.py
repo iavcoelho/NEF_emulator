@@ -1,20 +1,18 @@
-import logging
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from pymongo.database import Database
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.api import deps
-from app.crud import crud_mongo, user, ue
+from app.crud import crud_mongo, user
 from app.db.session import client
 from .utils import add_notifications
 
 router = APIRouter()
 db_collection= 'NetStatReport'
 
-@router.get("/{scsAsId}/subscriptions", response_model=List[schemas.AsSessionWithQoSSubscription])
+@router.get("/{scsAsId}/subscriptions", response_model=List[schemas.NetworkStatusReportingSubscription])
 def read_active_subscriptions(
     *,
     scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
@@ -93,7 +91,7 @@ def read_subscription(
 
     try:
         retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
-    except Exception as ex:
+    except Exception:
         raise HTTPException(status_code=400, detail='Please enter a valid uuid (24-character hex string)')
     
     #Check if the document exists
@@ -124,7 +122,7 @@ def update_subscription(
 
     try:
         retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
-    except Exception as ex:
+    except Exception:
         raise HTTPException(status_code=400, detail='Please enter a valid uuid (24-character hex string)')
     
     #Check if the document exists
@@ -160,7 +158,7 @@ def delete_subscription(
 
     try:
         retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
-    except Exception as ex:
+    except Exception:
         raise HTTPException(status_code=400, detail='Please enter a valid uuid (24-character hex string)')
 
 

@@ -1,7 +1,49 @@
-import secrets, json
+import json
+import secrets
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
+from typing_extensions import Annotated
 
-from pydantic import AnyHttpUrl, BaseSettings, EmailStr, HttpUrl, PostgresDsn, validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    BaseSettings,
+    EmailStr,
+    Field,
+    HttpUrl,
+    PostgresDsn,
+    validator,
+)
+
+
+class QoSInterfaceBackend(Enum):
+    NOOP = "noop"
+    HUWAEI = "huwaei"
+
+
+class QoSInterfaceSettings(BaseModel):
+    backend: QoSInterfaceBackend = QoSInterfaceBackend.NOOP
+
+    huwaei_api_url: str = ""
+    huwaei_api_user: str = ""
+    huwaei_api_password: str = ""
+    huwaei_default_ambrup: int = 0
+    huwaei_default_ambrdl: int = 0
+
+    @validator(
+        "huwaei_api_url",
+        "huwaei_api_user",
+        "huwaei_api_password",
+        "huwaei_default_ambrup",
+        "huwaei_default_ambrdl",
+        always=True,
+    )
+    def validate_huwaei_set(cls, v, field, values):
+        if not v and values["backend"] == QoSInterfaceBackend.HUWAEI:
+            raise ValueError(
+                f"{field.name} must be set when huwaei QoS backend is in use"
+            )
+        return v
 
 
 class Settings(BaseSettings):
@@ -89,23 +131,48 @@ class Settings(BaseSettings):
 
     REPORT_PATH: str
 
+    qos: QoSInterfaceSettings = QoSInterfaceSettings()
+
     class Config:
-        case_sensitive = True
+        # case_sensitive = True
+        env_nested_delimiter = "__"
 
 
 settings = Settings()
 
-class QoSSettings():
+
+class QoSProfile(BaseModel):
+    uplinkBitRate: Annotated[
+        Optional[int], Field(description="Uplink bandwidth in bps")
+    ] = None
+    downlinkBitRate: Annotated[
+        Optional[int], Field(description="Downlink bandwidth in bps")
+    ] = None
+    packetDelayBudget: Annotated[
+        Optional[int], Field(description="Packet delay budget in milliseconds")
+    ] = None
+    packerErrRate: Annotated[
+        Optional[str],
+        Field(description="Packet error rate in exponential form", examples=["4E-2"]),
+    ] = None
+
+
+class QoSSettings:
+    _qos_characteristics: dict[str, QoSProfile]
 
     def __init__(self) -> None:
         self.import_json()
-    
+
     def import_json(self):
-        with open('app/core/config/qosCharacteristics.json') as json_file:
-            data = json.load(json_file)        
+        with open("app/core/config/qosCharacteristics.json") as json_file:
+            data = json.load(json_file)
             self._qos_characteristics = data
 
-    def retrieve_settings(self):
-        return self._qos_characteristics
+    def get_qos_profile(self, reference: str) -> Optional[QoSProfile]:
+        qos = self._qos_characteristics.get(reference)
+        if qos is None:
+            return None
+        return QoSProfile.parse_obj(qos)
+
 
 qosSettings = QoSSettings()

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 #from sqlalchemy import Boolean, Column, Integer, String
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -23,6 +23,7 @@ class UE(Base):
     ip_address_v4 = Column(String, index=True)
     ip_address_v6 = Column(String, index=True)
     mac_address = Column(String, index=True)
+    msisdn = Column(String, index=True)
     dnn = Column(String, index=True)
     mcc = Column(Integer, index=True)
     mnc = Column(Integer, index=True)

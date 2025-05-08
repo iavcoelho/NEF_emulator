@@ -1,3 +1,4 @@
+import os
 import math
 import pika
 import threading
@@ -6,8 +7,6 @@ import time
 from fastapi import APIRouter, UploadFile, File
 from app.schemas import SinusoidalParameters
 import ast  # Import the ast module
-from .qosMonitoring import signal_param_change
-import os
 
 router = APIRouter()
 background_task = None
@@ -149,18 +148,3 @@ def stop_task():
         return {"msg": "Task stopped"}
     else:
         return {"msg": "No task is running"}
-
-
-@router.post("/trigger_qos", status_code=200)
-def trigger_qos(param: str):
-    """
-    Signals the qos function.
-    """
-    signal_param_change(True, param)
-
-@router.post("/stop_qos", status_code=200)
-def stop_qos():
-    """
-    Signals the qos function.
-    """
-    signal_param_change(False, "")

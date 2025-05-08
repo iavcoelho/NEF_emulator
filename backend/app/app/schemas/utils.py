@@ -1,15 +1,6 @@
-from pydantic import BaseModel, EmailStr, Extra
-from app import schemas
-from typing import List, Optional
-
-class scenario(BaseModel):
-    gNBs: List[schemas.gNBCreate]
-    cells: List[schemas.CellCreate]
-    UEs: List[schemas.UECreate]
-    paths: List[schemas.Path]
-    ue_path_association: List[schemas.ue_path]
+from pydantic import BaseModel, Extra
 
 class ExtraBaseModel(BaseModel):
-    
+
     class Config:
         extra = Extra.forbid
