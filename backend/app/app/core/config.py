@@ -12,6 +12,7 @@ from pydantic import (
     Field,
     HttpUrl,
     PostgresDsn,
+    parse_obj_as,
     validator,
 )
 
@@ -166,13 +167,13 @@ class QoSSettings:
     def import_json(self):
         with open("app/core/config/qosCharacteristics.json") as json_file:
             data = json.load(json_file)
-            self._qos_characteristics = data
+            self._qos_characteristics = parse_obj_as(dict[str, QoSProfile], data)
+
+    def get_all_profiles(self) -> List[QoSProfile]:
+        return list(self._qos_characteristics.values())
 
     def get_qos_profile(self, reference: str) -> Optional[QoSProfile]:
-        qos = self._qos_characteristics.get(reference)
-        if qos is None:
-            return None
-        return QoSProfile.parse_obj(qos)
+        return self._qos_characteristics.get(reference)
 
 
 qosSettings = QoSSettings()
