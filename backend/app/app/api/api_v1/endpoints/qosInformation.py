@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from sqlalchemy.orm.session import Session
 from app.db.session import client
@@ -13,20 +13,11 @@ def qos_reference_match(qos_reference: str) -> Optional[QoSProfile]:
 router = APIRouter()
 
 @router.get("/qosCharacteristics")
-def read_qos_characteristics(
-    *,
-    current_user: models.User = Depends(deps.get_current_active_user),
-    http_request: Request
-) -> Any:
+def read_qos_characteristics() -> List[QoSProfile]:
     """
     Get the available QoS Characteristics
     """
-    json_data = qosSettings.retrieve_settings()
-
-    if not json_data:
-        raise HTTPException(status_code=404, detail="There are no available QoS Characteristics")
-    else:
-        return json_data
+    return qosSettings.get_all_profiles()
     
 
 @router.get("/qosProfiles/{gNB_id}")
