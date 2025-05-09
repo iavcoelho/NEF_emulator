@@ -1,4 +1,5 @@
-import logging, asyncio
+import asyncio
+import logging
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
@@ -6,23 +7,21 @@ from fastapi.encoders import jsonable_encoder
 
 from app import crud, models, tools
 from app.api import deps
+from app.core.notification_responder import notification_responder
 from app.crud import crud_mongo
 from app.db.session import SessionLocal, client
 from app.models.UE import UE
 from app.schemas import Msg
 from app.schemas.monitoringevent import (
+    GeographicalCoordinates,
+    LocationInfo,
     MonitoringEventReport,
     MonitoringNotification,
     MonitoringType,
-    LocationInfo,
     Point,
     ReachabilityType,
     SupportedGADShapes,
-    GeographicalCoordinates,
 )
-
-from app.core.notification_responder import notification_responder
-
 from app.tools.distance import check_distance
 
 # Dictionary holding threads that are running per user id.
