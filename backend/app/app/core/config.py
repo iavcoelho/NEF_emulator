@@ -158,6 +158,10 @@ class QoSProfile(BaseModel):
     ] = None
 
 
+class NamedQoSProfile(QoSProfile):
+    name: str
+
+
 class QoSSettings:
     _qos_characteristics: dict[str, QoSProfile]
 
@@ -169,8 +173,8 @@ class QoSSettings:
             data = json.load(json_file)
             self._qos_characteristics = parse_obj_as(dict[str, QoSProfile], data)
 
-    def get_all_profiles(self) -> List[QoSProfile]:
-        return list(self._qos_characteristics.values())
+    def get_all_profiles(self) -> List[NamedQoSProfile]:
+        return [NamedQoSProfile(name=k, **v.dict()) for k, v in self._qos_characteristics.items()]
 
     def get_qos_profile(self, reference: str) -> Optional[QoSProfile]:
         return self._qos_characteristics.get(reference)
