@@ -24,23 +24,6 @@ from app.schemas.monitoringevent import (
 )
 from app.tools.distance import check_distance
 
-# Dictionary holding threads that are running per user id.
-threads = {}
-
-# Dictionary holding UEs' information
-ues = {}
-
-# Dictionary holding UEs' distances to cells
-distances = {}
-
-# Dictionary holding UEs' path losses in reference to cells
-path_losses = {}
-
-# Dictionary holding UEs' path losses in reference to cells
-rsrps = {}
-
-handovers = {}
-
 # API
 router = APIRouter()
 
@@ -58,21 +41,18 @@ def increment_position(speed: Speed) -> int:
 
 
 def validate_ue(*, ue: Optional[UE], user: models.User, db) -> Optional[UE]:
-    if not ue:
+    if ue is None:
         logging.warning("UE not found")
         return None
 
-    if ue.owner_id != user.id:
+    if not user.is_superuser or ue.owner_id != user.id:
         logging.warning("Not enough permissions")
         return None
 
     path = crud.path.get(db=db, id=ue.path_id)
-    if not path:
-        logging.warning("Path not found")
-        return None
 
-    if path.owner_id != user.id:
-        logging.warning("Not enough permissions")
+    if path is None:
+        logging.warning("Path not found")
         return None
 
     return ue
@@ -90,7 +70,7 @@ async def movement_loop(supi: str, user: models.User):
 
     # Assume end of path
     current_position_index = -1
-    cells = jsonable_encoder(crud.cell.get_multi_by_owner(db=db, owner_id=user.id))
+    cells = crud.cell.get_multi_by_owner(db=db, owner_id=user.id)
 
     # Find current position if one exists
     for index, point in enumerate(points):
@@ -107,26 +87,22 @@ async def movement_loop(supi: str, user: models.User):
         ) % len(points)
         point = points[current_position_index]
 
-        cell_now, cell_distances = check_distance(
-            point.latitude, point.longitude, cells
-        )
+        cell_now, _ = check_distance(point.latitude, point.longitude, cells)
 
         ue = crud.ue.update_coordinates(
             db=db, lat=point.latitude, long=point.longitude, db_obj=ue
         )
 
         logging.info("The current cell is %d", cell_now)
-        if cell_now and ue.Cell_id != cell_now.get("id"):
-            ue.Cell_id = cell_now.get("id")
+        if cell_now and ue.Cell_id != cell_now.id:
+            ue.Cell_id = cell_now.id
             crud.ue.update(
                 db=db,
                 db_obj=ue,
                 obj_in={"Cell_id": ue.Cell_id},
             )
 
-        await location_notification(
-            ue, ue.Cell_id, cell_now.get("id") if cell_now else None
-        )
+        await location_notification(ue, ue.Cell_id, cell_now.id if cell_now else None)
 
         await asyncio.sleep(1)
 
@@ -156,7 +132,7 @@ async def location_notification(
             crud_mongo.delete_by_uuid(db_mongo, "MonitoringEvent", doc.get("_id"))
             continue
 
-        if "maximumNumberOfReports" in sub:
+        if sub.get("maximumNumberOfReports") is not None:
             sub["maximumNumberOfReports"] = sub["maximumNumberOfReports"] - 1
             doc["subscription"] = sub
             crud_mongo.update(db_mongo, "MonitoringEvent", doc.get("_id"), doc)
@@ -180,9 +156,6 @@ async def handle_location_report_callback(location_reporting_sub, ue: UE):
     logging.info(
         "Attempting to send the callback to %d",
         location_reporting_sub.get("notificationDestination"),
-    )
-    print(
-        f"Attempting to send the callback to {location_reporting_sub.get('notificationDestination')}"
     )
 
     notification = MonitoringNotification(
@@ -209,17 +182,6 @@ async def handle_location_report_callback(location_reporting_sub, ue: UE):
     await notification_responder.send_notification(
         location_reporting_sub.get("notificationDestination"), notification
     )
-
-    maxReports = location_reporting_sub.get("maximumNumberOfReports")
-
-    if maxReports:
-        location_reporting_sub.update({"maximumNumberOfReports": maxReports - 1})
-        crud_mongo.update(
-            db_mongo,
-            "MonitoringEvent",
-            location_reporting_sub.get("_id"),
-            location_reporting_sub,
-        )
 
 
 async def handle_loss_connectivity_callback(
@@ -271,7 +233,7 @@ async def handle_ue_reachability_callback(
         )
 
 
-@router.post("/update_location/{supi}", status_code=200)
+@router.post("/update_location/{supi}", status_code=204)
 def update_location(
     *,
     supi: str = Path(...),
@@ -335,7 +297,7 @@ def terminate_movement(
         moving_devices.pop(msg.supi)
         return {"msg": "Loop ended"}
     except KeyError as ke:
-        print("Key Not Found in Threads Dictionary:", ke)
+        logging.warning("Key Not Found in Threads Dictionary:", ke)
         raise HTTPException(
             status_code=409,
             detail="There is no generator running for this SUPI",
@@ -366,19 +328,14 @@ def state_ues(
 
 # Functions
 def retrieve_ue_state(supi: str, user_id: int) -> bool:
-    try:
-        return threads[f"{supi}"][f"{user_id}"].is_alive()
-    except KeyError as ke:
-        print("Key Not Found in Threads Dictionary:", ke)
-        return False
+    return moving_devices.get(supi) is not None
 
 
-def retrieve_ues() -> dict:
-    return crud.ue.get_multi_by_owner(SessionLocal(), owner_id=current_user.id)
+def retrieve_ue(supi: str) -> Optional[UE]:
+    if moving_devices.get(supi):
+        return crud.ue.get_supi(SessionLocal(), supi)
 
-
-def retrieve_ue(supi: str) -> dict:
-    return crud.ue.get_supi(SessionLocal(), supi)
+    return None
 
 
 def retrieve_ue_distances(supi: str, user_id: int) -> dict:
@@ -387,7 +344,7 @@ def retrieve_ue_distances(supi: str, user_id: int) -> dict:
     if ue is None:
         return {}
 
-    cells = jsonable_encoder(crud.cell.get_multi_by_owner(db=db, owner_id=user_id))
+    cells = crud.cell.get_multi_by_owner(db=db, owner_id=user_id)
     _, distances = check_distance(ue.latitude, ue.longitude, cells)
     return distances
 
@@ -405,22 +362,3 @@ def retrieve_ue_handovers(supi: str) -> dict:
     if result != None:
         return handovers.get(supi)
     return []
-
-
-def monitoring_event_sub_validation(
-    sub: dict, is_superuser: bool, current_user_id: int, owner_id
-) -> bool:
-
-    if not is_superuser and (owner_id != current_user_id):
-        # logging.warning("Not enough permissions")
-        return False
-    else:
-        sub_validate_time = tools.check_expiration_time(
-            expire_time=sub.get("monitorExpireTime")
-        )
-        sub_validate_number_of_reports = tools.check_numberOfReports(
-            sub.get("maximumNumberOfReports")
-        )
-        if sub_validate_time and sub_validate_number_of_reports:
-            return True
-        return False

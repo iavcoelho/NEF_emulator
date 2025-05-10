@@ -38,11 +38,6 @@ router.route_class = ReportLogging
 db_collection = "MonitoringEvent"
 
 
-@router.get(
-    "/{scsAsId}/subscriptions",
-    response_model=List[schemas.MonitoringEventSubscription],
-    responses={200: {"model": List[schemas.MonitoringEventSubscription]}},
-)
 def filter_active_subscription(db_mongo, sub):
     sub_validate_time = tools.check_expiration_time(
         expire_time=sub.get("monitorExpireTime")
@@ -55,6 +50,11 @@ def filter_active_subscription(db_mongo, sub):
     return sub_validate_time
 
 
+@router.get(
+    "/{scsAsId}/subscriptions",
+    response_model=List[schemas.MonitoringEventSubscription],
+    responses={200: {"model": List[schemas.MonitoringEventSubscription]}},
+)
 def read_active_subscriptions(
     *,
     scsAsId: str = Path(
@@ -179,13 +179,12 @@ def create_subscription(
         if item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
 
             response = MonitoringEventReport(
-                externalId=item_in.externalId,
-                msisdn=item_in.msisdn,
+                msisdn=ue.msisdn,
                 monitoringType=item_in.monitoringType,
             )
             if ue.Cell_id:
-                response.locationArea = LocationInfo(
-                    cellIds=[ue.Cell_id],
+                response.locationInfo = LocationInfo(
+                    cellId=ue.Cell_id,
                     geographicArea=Point(
                         shape="POINT",
                         point=GeographicalCoordinates(
@@ -194,7 +193,7 @@ def create_subscription(
                     ),
                 )
             else:
-                response.locationArea = LocationInfo(
+                response.locationInfo = LocationInfo(
                     geographicArea=Point(
                         shape="POINT",
                         point=GeographicalCoordinates(
@@ -203,7 +202,9 @@ def create_subscription(
                     ),
                 )
 
-            serialized_subscription = jsonable_encoder(item_in.dict(exclude_unset=True))
+            serialized_subscription = jsonable_encoder(
+                response.dict(exclude_unset=True)
+            )
 
             http_response = JSONResponse(
                 content=serialized_subscription, status_code=200
@@ -232,7 +233,6 @@ def create_subscription(
     # Subscription
     if item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
 
-        item_in.owner_id = current_user.id
         item_in.ipv4Addr = ue.ip_address_v4
         json_data = jsonable_encoder(item_in.dict(exclude_unset=True))
 
@@ -254,7 +254,6 @@ def create_subscription(
         updated_doc = crud_mongo.read_uuid(
             db_mongo, db_collection, inserted_doc.inserted_id
         )["subscription"]
-        updated_doc.pop("owner_id")
 
         if item_in.immediateRep:
             handle_location_report_callback(updated_doc, ue)
@@ -281,7 +280,6 @@ def create_subscription(
                 detail=f"There is already an active subscription for UE with external id {item_in.externalId} - Monitoring Type = {item_in.monitoringType}",
             )
 
-        item_in.owner_id = current_user.id
         item_in.ipv4Addr = ue.ip_address_v4
         json_data = jsonable_encoder(item_in.dict(exclude_unset=True))
 
@@ -315,7 +313,6 @@ def create_subscription(
         updated_doc = crud_mongo.read_uuid(
             db_mongo, db_collection, inserted_doc.inserted_id
         )["subscription"]
-        updated_doc.pop("owner_id")
 
         http_response = JSONResponse(
             content=updated_doc, status_code=201, headers=response_header
@@ -337,7 +334,7 @@ def update_subscription(
         example="myNetapp",
     ),
     subscriptionId: str = Path(..., title="Identifier of the subscription resource"),
-    item_in: schemas.MonitoringEventSubscriptionCreate,
+    item_in: schemas.MonitoringEventSubscription,
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request,
 ) -> Any:
@@ -371,7 +368,7 @@ def update_subscription(
 
     if sub_validate_time:
         # Update the document
-        retrieved_doc["subscription"] = jsonable_encoder(item_in)
+        retrieved_doc["subscription"] = jsonable_encoder(item_in, exclude_unset=True)
         crud_mongo.update_new_field(
             db_mongo, db_collection, subscriptionId, retrieved_doc
         )
@@ -380,9 +377,6 @@ def update_subscription(
         updated_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)[
             "subscription"
         ]
-
-        updated_doc["subscription"].pop("owner_id")
-        updated_doc.pop("owner_id")
 
         http_response = JSONResponse(content=updated_doc, status_code=200)
         add_notifications(http_request, http_response, False)
@@ -436,13 +430,12 @@ def read_subscription(
     )
 
     if sub_validate_time:
-        retrieved_doc.pop("owner_id")
         http_response = JSONResponse(content=retrieved_doc, status_code=200)
 
         add_notifications(http_request, http_response, False)
         return http_response
 
-    crud_mongo.delete_by_uuid(db_mongo, db_collection, subscriptionId)
+    db_mongo[db_collection].delete_one({"_id": id})
     raise HTTPException(status_code=403, detail="Subscription has expired")
 
 
@@ -485,8 +478,7 @@ def delete_subscription(
     if not retrieved_doc:
         raise HTTPException(status_code=404, detail="Subscription not found")
 
-    crud_mongo.delete_by_uuid(db_mongo, db_collection, id)
-    retrieved_doc.pop("owner_id")
+    db_mongo[db_collection].delete_one({"_id": id})
 
     http_response = JSONResponse(content=retrieved_doc, status_code=200)
     add_notifications(http_request, http_response, False)
