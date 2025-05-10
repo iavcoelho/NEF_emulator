@@ -19,8 +19,7 @@ from bson.objectid import ObjectId
 
 from app import models
 from app.api import deps
-from app.api.api_v1.endpoints.qosInformation import qos_reference_match
-from app.core.config import QoSProfile
+from app.core.config import QoSProfile, qosSettings
 from app.crud import crud_mongo, ue as crud_ue, user
 from app.models import UE
 from app.db.session import client
@@ -637,7 +636,7 @@ def extract_qos_profile(
 
     if qosReferences != []:
         for qosReference in qosReferences:
-            qos_profile = qos_reference_match(qosReference)
+            qos_profile = qosSettings.get_qos_profile(qosReference)
             if qos_profile is not None:
                 break
         else:

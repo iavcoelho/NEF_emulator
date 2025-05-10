@@ -1,23 +1,32 @@
-from typing import Any, List, Optional
+from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from sqlalchemy.orm.session import Session
 from app.db.session import client
 from app import models
 from app.api import deps
-from app.core.config import QoSProfile, qosSettings
+from app.core.config import NamedQoSProfile, QoSProfile, qosSettings
 from app.crud import crud_mongo, user, gnb
-
-def qos_reference_match(qos_reference: str) -> Optional[QoSProfile]:
-    return qosSettings.get_qos_profile(qos_reference)
 
 router = APIRouter()
 
 @router.get("/qosCharacteristics")
-def read_qos_characteristics() -> List[QoSProfile]:
+def read_qos_characteristics() -> List[NamedQoSProfile]:
     """
-    Get the available QoS Characteristics
+    Get the QoS Characteristics of all available profiles
     """
     return qosSettings.get_all_profiles()
+
+@router.get("/qosCharacteristics/{name}")
+def read_qos_characteristics_for_profile(name: str) -> QoSProfile:
+    """
+    Get the QoS Characteristics of a specific qos profile
+    """
+    qos = qosSettings.get_qos_profile(name)
+
+    if qos is None:
+        raise HTTPException(status_code=404, detail="QoS Profile not found")
+
+    return qos
     
 
 @router.get("/qosProfiles/{gNB_id}")
