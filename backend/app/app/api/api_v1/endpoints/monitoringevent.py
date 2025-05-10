@@ -1,25 +1,26 @@
 from typing import Any, List
 
+from bson.objectid import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
-from bson.objectid import ObjectId
 from pydantic import parse_obj_as
+from sqlalchemy.orm import Session
 
 from app import models, schemas, tools
 from app.api import deps
 from app.api.api_v1.endpoints.utils import add_notifications
-from app.crud import crud_mongo, ue, user
+from app.crud import crud_mongo
+from app.crud import ue as crud_ue
+from app.crud import user
 from app.db.session import client
+from app.schemas.commonData import Link
 from app.schemas.monitoringevent import (
     GeographicalCoordinates,
+    LocationArea,
     MonitoringType,
     Point,
-    LocationArea,
 )
-from app.schemas.commonData import Link
-from app.crud import crud_mongo, ue as crud_ue, user
 
 from .ue_movement import (
     handle_location_report_callback,
