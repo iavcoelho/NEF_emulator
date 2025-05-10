@@ -23,6 +23,8 @@ from app.schemas.monitoringevent import (
     SupportedGADShapes,
 )
 from app.tools.distance import check_distance
+from app.tools.rsrp_calculation import check_rsrp, check_path_loss
+from app.deps import get_db
 
 # API
 router = APIRouter()
@@ -59,52 +61,54 @@ def validate_ue(*, ue: Optional[UE], user: models.User, db) -> Optional[UE]:
 
 
 async def movement_loop(supi: str, user: models.User):
-    db = SessionLocal()
-    ue = validate_ue(ue=crud.ue.get_supi(db=db, supi=supi), user=user, db=db)
+    with get_db() as db:
+        ue = validate_ue(ue=crud.ue.get_supi(db=db, supi=supi), user=user, db=db)
 
-    if ue is None:
-        moving_devices.pop(supi)
-        return
+        if ue is None:
+            moving_devices.pop(supi)
+            return
 
-    points = crud.points.get_points(db=db, path_id=ue.path_id)
+        points = crud.points.get_points(db=db, path_id=ue.path_id)
 
-    # Assume end of path
-    current_position_index = -1
-    cells = crud.cell.get_multi_by_owner(db=db, owner_id=user.id)
+        # Assume end of path
+        current_position_index = -1
+        cells = crud.cell.get_multi_by_owner(db=db, owner_id=user.id)
 
-    # Find current position if one exists
-    for index, point in enumerate(points):
-        if (ue.latitude == point.latitude) and (ue.longitude == point.longitude):
-            current_position_index = index
-            break
+        # Find current position if one exists
+        for index, point in enumerate(points):
+            if (ue.latitude == point.latitude) and (ue.longitude == point.longitude):
+                current_position_index = index
+                break
 
-    while True:
-        if supi not in moving_devices:
-            break
+        while True:
+            if supi not in moving_devices:
+                break
 
-        current_position_index = (
-            increment_position(ue.speed) + current_position_index
-        ) % len(points)
-        point = points[current_position_index]
+            current_position_index = (
+                increment_position(ue.speed) + current_position_index
+            ) % len(points)
+            point = points[current_position_index]
 
-        cell_now, _ = check_distance(point.latitude, point.longitude, cells)
+            cell_now, _ = check_distance(point.latitude, point.longitude, cells)
 
-        ue = crud.ue.update_coordinates(
-            db=db, lat=point.latitude, long=point.longitude, db_obj=ue
-        )
-
-        logging.info("The current cell is %d", cell_now)
-        if cell_now and ue.Cell_id != cell_now.id:
-            ue.Cell_id = cell_now.id
-            crud.ue.update(
-                db=db,
-                db_obj=ue,
-                obj_in={"Cell_id": ue.Cell_id},
+            ue = crud.ue.update_coordinates(
+                db=db, lat=point.latitude, long=point.longitude, db_obj=ue
             )
 
-        await location_notification(ue, ue.Cell_id, cell_now.id if cell_now else None)
+            logging.info("The current cell is %d", cell_now)
+            if cell_now and ue.Cell_id != cell_now.id:
+                ue.Cell_id = cell_now.id
+                crud.ue.update(
+                    db=db,
+                    db_obj=ue,
+                    obj_in={"Cell_id": ue.Cell_id},
+                )
 
-        await asyncio.sleep(1)
+            await location_notification(
+                ue, ue.Cell_id, cell_now.id if cell_now else None
+            )
+
+            await asyncio.sleep(1)
 
 
 async def location_notification(
@@ -192,23 +196,23 @@ async def handle_loss_connectivity_callback(
 ):
     if old_cell_id and not current_cell_id:
         await asyncio.sleep(loss_of_connectivity_sub.get("maximumDurationTime"))
-        db = SessionLocal()
-        new_ue = crud.ue.get_supi(db=db, supi=ue.supi)
-        if new_ue and not new_ue.Cell_id:
-            notification = MonitoringNotification(
-                subscription=loss_of_connectivity_sub.get("link"),
-                monitoringEventReports=[
-                    MonitoringEventReport(
-                        externalId=ue.external_identifier,
-                        monitoringType=MonitoringType.LOSS_OF_CONNECTIVITY,
-                        lossOfConnectReason=2,
-                    )
-                ],
-            )
+        with get_db() as db:
+            new_ue = crud.ue.get_supi(db=db, supi=ue.supi)
+            if new_ue and not new_ue.Cell_id:
+                notification = MonitoringNotification(
+                    subscription=loss_of_connectivity_sub.get("link"),
+                    monitoringEventReports=[
+                        MonitoringEventReport(
+                            externalId=ue.external_identifier,
+                            monitoringType=MonitoringType.LOSS_OF_CONNECTIVITY,
+                            lossOfConnectReason=2,
+                        )
+                    ],
+                )
 
-            await notification_responder.send_notification(
-                loss_of_connectivity_sub.get("notificationDestination"), notification
-            )
+                await notification_responder.send_notification(
+                    loss_of_connectivity_sub.get("notificationDestination"), notification
+                )
 
     logging.info("There was an attempt at calling the connectivity callback")
 
@@ -241,21 +245,21 @@ def update_location(
     background_tasks: BackgroundTasks,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    db = SessionLocal()
-    ue = crud.ue.get_supi(db, supi)
+    with get_db() as db
+        ue = crud.ue.get_supi(db, supi)
 
-    if not ue:
-        raise HTTPException(
-            status_code=404,
-            detail="No device found",
+        if not ue:
+            raise HTTPException(
+                status_code=404,
+                detail="No device found",
+            )
+
+        ue = crud.ue.update_coordinates(
+            db,
+            lat=new_location.point.lat,
+            long=new_location.point.lon,
+            db_obj=ue,
         )
-
-    ue = crud.ue.update_coordinates(
-        db,
-        lat=new_location.point.lat,
-        long=new_location.point.lon,
-        db_obj=ue,
-    )
 
     background_tasks.add_task(location_notification, ue)
 
@@ -323,7 +327,8 @@ def state_ues(
     """
     Get the state
     """
-    return crud.ue.get_multi_by_owner(SessionLocal(), owner_id=current_user.id)
+    with get_db() as db:
+        return crud.ue.get_multi_by_owner(db, owner_id=current_user.id)
 
 
 # Functions
@@ -333,28 +338,44 @@ def retrieve_ue_state(supi: str, user_id: int) -> bool:
 
 def retrieve_ue(supi: str) -> Optional[UE]:
     if moving_devices.get(supi):
-        return crud.ue.get_supi(SessionLocal(), supi)
+        with get_db() as db:
+            return crud.ue.get_supi(db, supi)
 
     return None
 
 
 def retrieve_ue_distances(supi: str, user_id: int) -> dict:
-    db = SessionLocal()
-    ue = crud.ue.get_supi(db, supi)
-    if ue is None:
-        return {}
+    with get_db() as db:
+        ue = crud.ue.get_supi(db, supi)
+        if ue is None:
+            return {}
 
-    cells = crud.cell.get_multi_by_owner(db=db, owner_id=user_id)
+        cells = crud.cell.get_multi_by_owner(db=db, owner_id=user_id)
+
     _, distances = check_distance(ue.latitude, ue.longitude, cells)
     return distances
 
 
-def retrieve_ue_path_losses(supi: str) -> dict:
-    return path_losses.get(supi)
+def retrieve_ue_path_losses(supi: str, id) -> dict:
+    with get_db() as db:
+        ue = crud.ue.get_supi(db, supi=supi)
+        if ue is None:
+            return {}
+
+        cells = crud.cell.get_multi_by_owner(db, owner_id=id)
+
+    return check_path_loss(ue.latitude, ue.longitude, jsonable_encoder(cells))
 
 
-def retrieve_ue_rsrps(supi: str) -> dict:
-    return rsrps.get(supi)
+def retrieve_ue_rsrps(supi: str, id) -> dict:
+    with get_db() as db:
+        ue = crud.ue.get_supi(db, supi=supi)
+        if ue is None:
+            return {}
+
+        cells = crud.cell.get_multi_by_owner(db, owner_id=id)
+
+    return check_rsrp(ue.latitude, ue.longitude, jsonable_encoder(cells))
 
 
 def retrieve_ue_handovers(supi: str) -> dict:

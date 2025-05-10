@@ -1,6 +1,14 @@
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Path,
+    Request,
+    Response,
+    BackgroundTasks,
+)
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import parse_obj_as
@@ -123,6 +131,7 @@ def create_subscription(
     item_in: schemas.MonitoringEventSubscription,
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Create new subscription.
@@ -256,7 +265,7 @@ def create_subscription(
         )["subscription"]
 
         if item_in.immediateRep:
-            handle_location_report_callback(updated_doc, ue)
+            background_tasks.add_task(handle_location_report_callback, updated_doc, ue)
 
         http_response = JSONResponse(
             content=updated_doc, status_code=201, headers=response_header
@@ -298,13 +307,25 @@ def create_subscription(
             item_in.immediateRep
             and item_in.monitoringType == MonitoringType.LOSS_OF_CONNECTIVITY
         ):
-            handle_loss_connectivity_callback(inserted_doc, ue, ue.Cell_id, ue.Cell_id)
+            background_tasks.add_task(
+                handle_loss_connectivity_callback,
+                inserted_doc,
+                ue,
+                ue.Cell_id,
+                ue.Cell_id,
+            )
 
         elif (
             item_in.immediateRep
             and item_in.monitoringType == MonitoringType.UE_REACHABILITY
         ):
-            handle_ue_reachability_callback(inserted_doc, ue, ue.Cell_id, ue.Cell_id)
+            background_tasks.add_task(
+                handle_ue_reachability_callback,
+                inserted_doc,
+                ue,
+                ue.Cell_id,
+                ue.Cell_id,
+            )
 
         # Create the reference resource and location header
         response_header = {"Location": item_in.self}
