@@ -4,6 +4,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
+from contextlib import contextmanager
 
 from app import crud, models, schemas
 from app.core import security
@@ -14,13 +15,26 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token"
 )
 
-#Dependencies
+
+# Dependencies
 def get_db() -> Generator:
     try:
-        db = SessionLocal() #Only the code prior to and including the yield statement is executed before sending a response
-        yield db            #The yielded value is what is injected into path operations and other dependencies
+        db = (
+            SessionLocal()
+        )  # Only the code prior to and including the yield statement is executed before sending a response
+        yield db  # The yielded value is what is injected into path operations and other dependencies
     finally:
-        db.close()          #The code following the yield statement is executed after the response has been delivered
+        db.close()  # The code following the yield statement is executed after the response has been delivered
+
+
+@contextmanager
+def db_context():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(reusable_oauth2)
