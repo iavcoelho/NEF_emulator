@@ -43,6 +43,18 @@ db_collection = "MonitoringEvent"
     response_model=List[schemas.MonitoringEventSubscription],
     responses={200: {"model": List[schemas.MonitoringEventSubscription]}},
 )
+def filter_active_subscription(db_mongo, sub):
+    sub_validate_time = tools.check_expiration_time(
+        expire_time=sub.get("monitorExpireTime")
+    )
+    if not sub_validate_time:
+        crud_mongo.delete_by_item(
+            db_mongo, db_collection, "externalId", sub.get("externalId")
+        )
+
+    return sub_validate_time
+
+
 def read_active_subscriptions(
     *,
     scsAsId: str = Path(
@@ -59,25 +71,17 @@ def read_active_subscriptions(
     db_mongo = client.fastapi
 
     retrieved_docs = list(
-        map(
-            lambda doc: doc["subscription"],
-            db_mongo[db_collection].find(
-                {"owner_id": current_user.id},
-                projection={"_id": False, "subscription": True},
+        filter(
+            lambda x: filter_active_subscription(db_mongo, x),
+            map(
+                lambda doc: doc["subscription"],
+                db_mongo[db_collection].find(
+                    {"owner_id": current_user.id},
+                    projection={"_id": False, "subscription": True},
+                ),
             ),
         )
     )
-
-    for i in range(len(retrieved_docs) - 1, -1, -1):
-        sub = retrieved_docs[i]
-        sub_validate_time = tools.check_expiration_time(
-            expire_time=sub.get("monitorExpireTime")
-        )
-        if not sub_validate_time:
-            crud_mongo.delete_by_item(
-                db_mongo, db_collection, "externalId", sub.get("externalId")
-            )
-            retrieved_docs.pop(i)
 
     if retrieved_docs:
 
