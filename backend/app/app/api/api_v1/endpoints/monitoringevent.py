@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from typing import Any, List
 
 from fastapi import (
@@ -7,7 +9,6 @@ from fastapi import (
     Path,
     Request,
     Response,
-    BackgroundTasks,
 )
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -114,7 +115,7 @@ def monitoring_notification(body: schemas.MonitoringNotification):
     responses={201: {"model": schemas.MonitoringEventSubscription}},
     callbacks=monitoring_callback_router.routes,
 )
-def create_subscription(
+async def create_subscription(
     *,
     scsAsId: str = Path(
         ...,
@@ -125,7 +126,6 @@ def create_subscription(
     item_in: schemas.MonitoringEventSubscription,
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request,
-    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Create new subscription.
@@ -240,7 +240,7 @@ def create_subscription(
         response_header = {"Location": item_in.self}
 
         if item_in.immediateRep:
-            background_tasks.add_task(handle_location_report_callback, json_data, ue)
+            asyncio.create_task(handle_location_report_callback(json_data, ue, id))
 
         http_response = JSONResponse(
             content=json_data, status_code=201, headers=response_header
@@ -268,24 +268,20 @@ def create_subscription(
             item_in.immediateRep
             and item_in.monitoringType == MonitoringType.LOSS_OF_CONNECTIVITY
         ):
-            background_tasks.add_task(
-                handle_loss_connectivity_callback,
-                inserted_doc,
-                ue,
-                ue.Cell_id,
-                ue.Cell_id,
+            asyncio.create_task(
+                handle_loss_connectivity_callback(
+                    inserted_doc, ue, id, ue.Cell_id, ue.Cell_id
+                )
             )
 
         elif (
             item_in.immediateRep
             and item_in.monitoringType == MonitoringType.UE_REACHABILITY
         ):
-            background_tasks.add_task(
-                handle_ue_reachability_callback,
-                inserted_doc,
-                ue,
-                ue.Cell_id,
-                ue.Cell_id,
+            asyncio.create_task(
+                handle_ue_reachability_callback(
+                    inserted_doc, ue, id, ue.Cell_id, ue.Cell_id
+                )
             )
 
         # Create the reference resource and location header
@@ -330,7 +326,7 @@ def update_subscription(
         # Update the document
         json_data = jsonable_encoder(item_in, exclude_unset=True)
         updated_doc = db_mongo[db_collection].find_one_and_update(
-            {"_id": id},
+            {"_id": ObjectId(subscriptionId)},
             {"$set": {"subscription": json_data}},
             projection={"_id": False, "subscription": True},
             return_document=ReturnDocument.AFTER,
@@ -404,7 +400,7 @@ def delete_subscription(
     if not retrieved_doc:
         raise HTTPException(status_code=404, detail="Subscription not found")
 
-    db_mongo[db_collection].delete_one({"_id": id})
+    db_mongo[db_collection].delete_one({"_id": ObjectId(subscriptionId)})
 
     http_response = JSONResponse(content=retrieved_doc, status_code=200)
     add_notifications(http_request, http_response, False)
