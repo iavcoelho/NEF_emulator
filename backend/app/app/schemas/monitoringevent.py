@@ -2,6 +2,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Union
 
+from ipaddress import IPv4Address, IPv6Address
+
 from pydantic import AnyHttpUrl, AnyUrl, Field, IPvAnyAddress, confloat, conint, constr
 
 from .utils import ExtraBaseModel
@@ -55,23 +57,6 @@ class Dnn(ExtraBaseModel):
     )
 
 
-class Ipv4Addr(ExtraBaseModel):
-    __root__: constr(
-        regex=r"^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$"
-    ) = Field(
-        ...,
-        description="String identifying a IPv4 address formatted in the 'dotted decimal' notation as defined in RFC 1166.",
-        example="198.51.100.1",
-    )
-
-
-class Ipv6Addr(ExtraBaseModel):
-    __root__: str = Field(
-        ...,
-        description="String identifying an IPv6 address formatted according to clause 4 of RFC5952. The mixed IPv4 IPv6 notation according to clause 5 of RFC5952 shall not be used.",
-    )
-
-
 class Ipv6Prefix(ExtraBaseModel):
     __root__: str = Field(
         ...,
@@ -83,20 +68,6 @@ class MacAddr48(ExtraBaseModel):
     __root__: constr(regex=r"^([0-9a-fA-F]{2})((-[0-9a-fA-F]{2}){5})$") = Field(
         ...,
         description="String identifying a MAC address formatted in the hexadecimal notation according to clause 1.1 and clause 2.1 of RFC 7042.",
-    )
-
-
-class Ipv4AddrModel(ExtraBaseModel):
-    __root__: str = Field(
-        ...,
-        description='string identifying a Ipv4 address formatted in the "dotted decimal" notation as defined in IETF RFC 1166.',
-    )
-
-
-class Ipv6AddrModel(ExtraBaseModel):
-    __root__: str = Field(
-        ...,
-        description="string identifying a Ipv6 address formatted according to clause 4 in IETF RFC 5952. The mixed Ipv4 Ipv6 notation according to clause 5 of IETF RFC 5952 shall not be used.",
     )
 
 
@@ -523,8 +494,8 @@ class N3gaLocation(ExtraBaseModel):
         None,
         description='This IE shall contain the N3IWF identifier received over NGAP and shall be encoded as a  string of hexadecimal characters. Each character in the string shall take a value of "0"  to "9", "a" to "f" or "A" to "F" and shall represent 4 bits. The most significant  character representing the 4 most significant bits of the N3IWF ID shall appear first in  the string, and the character representing the 4 least significant bit of the N3IWF ID  shall appear last in the string. \n',
     )
-    ueIpv4Addr: Optional[Ipv4Addr] = None
-    ueIpv6Addr: Optional[Ipv6Addr] = None
+    ueIpv4Addr: Optional[IPv4Address] = None
+    ueIpv6Addr: Optional[IPv6Address] = None
     portNumber: Optional[Uinteger] = None
     protocol: Optional[TransportProtocol] = None
     tnapId: Optional[TnapId] = None
@@ -864,8 +835,8 @@ class AssociationTypeModel(str, Enum):
 class PduSessionInformation(ExtraBaseModel):
     snssai: Snssai
     dnn: Dnn
-    ueIpv4: Optional[Ipv4Addr] = None
-    ueIpv6: Optional[Ipv6Prefix] = None
+    ueIpv4: Optional[IPv4Address] = None
+    ueIpv6: Optional[IPv6Address] = None
     ipDomain: Optional[str] = None
     ueMac: Optional[MacAddr48] = None
 
@@ -961,8 +932,8 @@ class PdnConnectionInformation(ExtraBaseModel):
     )
     pdnType: PdnType
     interfaceInd: Optional[InterfaceIndication] = None
-    ipv4Addr: Optional[Ipv4AddrModel] = None
-    ipv6Addrs: Optional[List[Ipv6AddrModel]] = Field(None, min_items=1)
+    ipv4Addr: Optional[IPv4Address] = None
+    ipv6Addrs: Optional[List[IPv6Address]] = Field(None, min_items=1)
     macAddrs: Optional[List[MacAddr48]] = Field(None, min_items=1)
 
 
@@ -973,8 +944,8 @@ class DlDataDeliveryStatus(str, Enum):
 
 
 class DddTrafficDescriptor(ExtraBaseModel):
-    ipv4Addr: Optional[Ipv4Addr] = None
-    ipv6Addr: Optional[Ipv6Addr] = None
+    ipv4Addr: Optional[IPv4Address] = None
+    ipv6Addr: Optional[IPv6Address] = None
     portNumber: Optional[Uinteger] = None
     macAddr: Optional[MacAddr48] = None
 
@@ -1100,7 +1071,7 @@ class MonitoringEventSubscription(MonitoringEventSubscriptionCreate):
         "https://myresource.com",
         description="String identifying a referenced resource. This is also returned as a location header in 201 Created Response",
     )
-    ipv4Addr: Optional[IPvAnyAddress] = Field(
+    ipv4Addr: Optional[IPv4Address] = Field(
         None, description="String identifying an Ipv4 address"
     )
 
@@ -1263,8 +1234,8 @@ class Fqdn(ExtraBaseModel):
 
 
 class UpLocRepAddrAfRm(ExtraBaseModel):
-    ipv4Addrs: Optional[List[Ipv4Addr]] = Field(None, min_items=1)
-    ipv6Addrs: Optional[List[Ipv6Addr]] = Field(None, min_items=1)
+    ipv4Addrs: Optional[List[IPv4Address]] = Field(None, min_items=1)
+    ipv6Addrs: Optional[List[IPv6Address]] = Field(None, min_items=1)
     fqdn: Optional[Fqdn] = None
 
 
@@ -1308,8 +1279,8 @@ class RangingSlResult(str, Enum):
 
 
 class IpAddr(ExtraBaseModel):
-    ipv4Addr: Optional[Ipv4Addr] = None
-    ipv6Addr: Optional[Ipv6Addr] = None
+    ipv4Addr: Optional[IPv4Address] = None
+    ipv6Addr: Optional[IPv6Address] = None
     ipv6Prefix: Optional[Ipv6Prefix] = None
 
 
@@ -1423,8 +1394,8 @@ class MonitoringEventSubscription(ExtraBaseModel):
     )
     externalGroupId: Optional[ExternalGroupId] = None
     addExtGroupId: Optional[List[ExternalGroupId]] = Field(None, min_items=2)
-    ipv4Addr: Optional[Ipv4AddrModel] = None
-    ipv6Addr: Optional[Ipv6AddrModel] = None
+    ipv4Addr: Optional[IPv4Address] = None
+    ipv6Addr: Optional[IPv6Address] = None
     dnn: Optional[Dnn] = None
     notificationDestination: AnyUrl
     requestTestNotification: Optional[bool] = Field(

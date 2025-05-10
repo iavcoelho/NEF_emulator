@@ -6,6 +6,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import parse_obj_as
 from sqlalchemy.orm import Session
+from bson.objectid import ObjectId
+from pydantic import parse_obj_as
 
 from app import models, schemas, tools
 from app.api import deps
@@ -21,6 +23,8 @@ from app.schemas.monitoringevent import (
     MonitoringType,
     Point,
 )
+from app.schemas.commonData import Link
+from app.crud import crud_mongo, ue as crud_ue, user
 
 from .ue_movement import (
     handle_location_report_callback,
@@ -133,16 +137,18 @@ def create_subscription(
     item_in.self = parse_obj_as(Link, f"{http_request.url}/{id}")
 
     if item_in.ipv4Addr is not None:
-        id_value = str(item_in.ueIpv4Addr)
+        print("The IPv4 Addr is", str(item_in.ipv4Addr))
+        id_value = str(item_in.ipv4Addr)
         ue = crud_ue.get_ipv4(db=db, ipv4=id_value, owner_id=current_user.id)
 
     elif item_in.ipv6Addr is not None:
-        id_value = item_in.ueIpv6Addr.exploded
+        print("The IPv6 Addr is", item_in.ipv6Addr.exploded)
+        id_value = item_in.ipv6Addr.exploded
         ue = crud_ue.get_ipv6(db=db, ipv6=id_value, owner_id=current_user.id)
 
     elif item_in.externalId:
         ue = crud_ue.get_externalId(
-            db=db, externalId=item_in.externalId, owner_id=current_user.id
+            db=db, externalId=item_in.externalId.__root__, owner_id=current_user.id
         )
 
     elif item_in.msisdn:
