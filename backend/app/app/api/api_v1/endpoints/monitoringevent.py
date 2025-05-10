@@ -1,6 +1,5 @@
 from typing import Any, List
 
-from bson.objectid import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -19,7 +18,8 @@ from app.db.session import client
 from app.schemas.commonData import Link
 from app.schemas.monitoringevent import (
     GeographicalCoordinates,
-    LocationArea,
+    LocationInfo,
+    MonitoringEventReport,
     MonitoringType,
     Point,
 )
@@ -41,7 +41,7 @@ db_collection = "MonitoringEvent"
 @router.get(
     "/{scsAsId}/subscriptions",
     response_model=List[schemas.MonitoringEventSubscription],
-    responses={204: {"model": None}},
+    responses={200: {"model": List[schemas.MonitoringEventSubscription]}},
 )
 def read_active_subscriptions(
     *,
@@ -85,7 +85,7 @@ def read_active_subscriptions(
         add_notifications(http_request, http_response, False)
         return http_response
 
-    return Response(status_code=204)
+    return JSONResponse(content=[], status_code=200)
 
 
 # Callback
@@ -95,8 +95,7 @@ monitoring_callback_router = APIRouter()
 
 @monitoring_callback_router.post(
     "{$request.body.notificationDestination}",
-    response_model=schemas.MonitoringEventReportReceived,
-    status_code=200,
+    status_code=204,
     response_class=Response,
 )
 def monitoring_notification(body: schemas.MonitoringNotification):
@@ -161,7 +160,7 @@ def create_subscription(
             status_code=404, detail="UE with this identifier doesn't exist"
         )
 
-    isByMaxReports = item_in.maximumNumberOfReports
+    isByMaxReports = item_in.maximumNumberOfReports is not None
 
     isByExpireTime = item_in.monitorExpireTime is not None
 
@@ -175,17 +174,30 @@ def create_subscription(
     if item_in.maximumNumberOfReports == 1:
         if item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
 
-            item_in.locationArea = LocationArea(
-                cellIds=[ue.Cell_id],
-                geographicAreas=[
-                    Point(
+            response = MonitoringEventReport(
+                externalId=item_in.externalId,
+                msisdn=item_in.msisdn,
+                monitoringType=item_in.monitoringType,
+            )
+            if ue.Cell_id:
+                response.locationArea = LocationInfo(
+                    cellIds=[ue.Cell_id],
+                    geographicArea=Point(
                         shape="POINT",
                         point=GeographicalCoordinates(
                             lat=ue.latitude, lon=ue.longitude
                         ),
-                    )
-                ],
-            )
+                    ),
+                )
+            else:
+                response.locationArea = LocationInfo(
+                    geographicArea=Point(
+                        shape="POINT",
+                        point=GeographicalCoordinates(
+                            lat=ue.latitude, lon=ue.longitude
+                        ),
+                    ),
+                )
 
             serialized_subscription = jsonable_encoder(item_in.dict(exclude_unset=True))
 
@@ -203,125 +215,110 @@ def create_subscription(
             return JSONResponse(
                 content=jsonable_encoder(
                     {
-                        "title": "The requested parameters are out of range",
+                        "title": "Not Supported",
                         "invalidParams": {
                             "param": "maximumNumberOfReports",
-                            "reason": '"maximumNumberOfReports" should be greater than 1 in case of LOSS_OF_CONNECTIVITY event',
+                            "reason": '"maximumNumberOfReports" should be greater than 1 in case of LOSS_OF_CONNECTIVITY or UE_REACHABILITY event',
                         },
                     }
                 ),
-                status_code=403,
+                status_code=400,
             )
 
     # Subscription
-    elif isByMaxReports or isByExpireTime:
-        if item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
+    if item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
 
-            json_data = jsonable_encoder(item_in.dict(exclude_unset=True))
-            json_data.update(
-                {
-                    "owner_id": current_user.id,
-                    "ipv4Addr": ue.ip_address_v4,
-                }
-            )
+        item_in.owner_id = current_user.id
+        item_in.ipv4Addr = ue.ip_address_v4
+        json_data = jsonable_encoder(item_in.dict(exclude_unset=True))
 
-            inserted_doc = crud_mongo.create(
-                db_mongo,
-                db_collection,
-                {
-                    "supi": ue.supi,
-                    "subscription": json_data,
-                    "owner_id": current_user.id,
-                },
-            )
+        inserted_doc = crud_mongo.create(
+            db_mongo,
+            db_collection,
+            {
+                "_id": id,
+                "supi": ue.supi,
+                "subscription": json_data,
+                "owner_id": current_user.id,
+            },
+        )
 
-            # Create the reference resource and location header
-            link = str(http_request.url) + "/" + str(inserted_doc.inserted_id)
-            response_header = {"location": link}
+        # Create the reference resource and location header
+        response_header = {"Location": item_in.self}
 
-            # Retrieve the updated document | UpdateResult is not a dict
-            updated_doc = crud_mongo.read_uuid(
-                db_mongo, db_collection, inserted_doc.inserted_id
-            )["subscription"]
-            updated_doc.pop("owner_id")
-            updated_doc["self"] = f"{http_request.url}/{inserted_doc.inserted_id}"
+        # Retrieve the updated document | UpdateResult is not a dict
+        updated_doc = crud_mongo.read_uuid(
+            db_mongo, db_collection, inserted_doc.inserted_id
+        )["subscription"]
+        updated_doc.pop("owner_id")
 
-            if item_in.immediateRep:
-                handle_location_report_callback(updated_doc, ue)
+        if item_in.immediateRep:
+            handle_location_report_callback(updated_doc, ue)
 
-            http_response = JSONResponse(
-                content=updated_doc, status_code=201, headers=response_header
-            )
-            add_notifications(http_request, http_response, False)
+        http_response = JSONResponse(
+            content=updated_doc, status_code=201, headers=response_header
+        )
+        add_notifications(http_request, http_response, False)
 
-            return http_response
-        if item_in.monitoringType in (
-            MonitoringType.LOSS_OF_CONNECTIVITY,
-            MonitoringType.UE_REACHABILITY,
+        return http_response
+    if item_in.monitoringType in (
+        MonitoringType.LOSS_OF_CONNECTIVITY,
+        MonitoringType.UE_REACHABILITY,
+    ):
+        # Check if subscription with externalid && monitoringType exists
+        if crud_mongo.read_by_multiple_pairs(
+            db_mongo,
+            db_collection,
+            externalId=item_in.externalId and item_in.externalId.__root__,
+            monitoringType=item_in.monitoringType,
         ):
-            # Check if subscription with externalid && monitoringType exists
-            if crud_mongo.read_by_multiple_pairs(
-                db_mongo,
-                db_collection,
-                externalId=item_in.externalId and item_in.externalId.__root__,
-                monitoringType=item_in.monitoringType,
-            ):
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"There is already an active subscription for UE with external id {item_in.externalId} - Monitoring Type = {item_in.monitoringType}",
-                )
-
-            json_data = jsonable_encoder(item_in.dict(exclude_unset=True))
-            json_data.update(
-                {
-                    "owner_id": current_user.id,
-                    "ipv4Addr": ue.ip_address_v4,
-                }
+            raise HTTPException(
+                status_code=409,
+                detail=f"There is already an active subscription for UE with external id {item_in.externalId} - Monitoring Type = {item_in.monitoringType}",
             )
 
-            inserted_doc = crud_mongo.create(
-                db_mongo,
-                db_collection,
-                {
-                    "supi": UE.supi,
-                    "subscription": json_data,
-                    "owner_id": current_user.id,
-                },
-            )
+        item_in.owner_id = current_user.id
+        item_in.ipv4Addr = ue.ip_address_v4
+        json_data = jsonable_encoder(item_in.dict(exclude_unset=True))
 
-            if (
-                item_in.immediateRep
-                and item_in.monitoringType == MonitoringType.LOSS_OF_CONNECTIVITY
-            ):
-                handle_loss_connectivity_callback(
-                    inserted_doc, ue, ue.Cell_id, ue.Cell_id
-                )
+        inserted_doc = crud_mongo.create(
+            db_mongo,
+            db_collection,
+            {
+                "_id": id,
+                "supi": ue.supi,
+                "subscription": json_data,
+                "owner_id": current_user.id,
+            },
+        )
 
-            elif (
-                item_in.immediateRep
-                and item_in.monitoringType == MonitoringType.UE_REACHABILITY
-            ):
-                handle_ue_reachability_callback(
-                    inserted_doc, ue, ue.Cell_id, ue.Cell_id
-                )
+        if (
+            item_in.immediateRep
+            and item_in.monitoringType == MonitoringType.LOSS_OF_CONNECTIVITY
+        ):
+            handle_loss_connectivity_callback(inserted_doc, ue, ue.Cell_id, ue.Cell_id)
 
-            # Create the reference resource and location header
-            link = str(http_request.url) + "/" + str(inserted_doc.inserted_id)
-            response_header = {"location": link}
+        elif (
+            item_in.immediateRep
+            and item_in.monitoringType == MonitoringType.UE_REACHABILITY
+        ):
+            handle_ue_reachability_callback(inserted_doc, ue, ue.Cell_id, ue.Cell_id)
 
-            # Retrieve the updated document | UpdateResult is not a dict
-            updated_doc = crud_mongo.read_uuid(
-                db_mongo, db_collection, inserted_doc.inserted_id
-            )["subscription"]
-            updated_doc.pop("owner_id")
-            updated_doc["self"] = f"{http_request.url}/{inserted_doc.inserted_id}"
+        # Create the reference resource and location header
+        response_header = {"Location": item_in.self}
 
-            http_response = JSONResponse(
-                content=updated_doc, status_code=201, headers=response_header
-            )
-            add_notifications(http_request, http_response, False)
+        # Retrieve the updated document | UpdateResult is not a dict
+        updated_doc = crud_mongo.read_uuid(
+            db_mongo, db_collection, inserted_doc.inserted_id
+        )["subscription"]
+        updated_doc.pop("owner_id")
 
-            return http_response
+        http_response = JSONResponse(
+            content=updated_doc, status_code=201, headers=response_header
+        )
+        add_notifications(http_request, http_response, False)
+
+        return http_response
 
 
 @router.put(
@@ -346,21 +343,23 @@ def update_subscription(
     db_mongo = client.fastapi
 
     try:
-        retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
-    except Exception as ex:
+        id = ObjectId(subscriptionId)
+    except Exception:
         raise HTTPException(
             status_code=400,
             detail="Please enter a valid uuid (24-character hex string)",
         )
 
+    filters = {"_id": id}
+    if not user.is_superuser(current_user):
+        filters = {"owner_id": current_user.id}
+    retrieved_doc = db_mongo[db_collection].find_one(
+        filters, {"_id": False, "subscription": True}
+    )
+
     # Check if the document exists
     if not retrieved_doc:
         raise HTTPException(status_code=404, detail="Subscription not found")
-    # If the document exists then validate the owner
-    if not user.is_superuser(current_user) and (
-        retrieved_doc["owner_id"] != current_user.id
-    ):
-        raise HTTPException(status_code=400, detail="Not enough permissions")
 
     sub_validate_time = tools.check_expiration_time(
         expire_time=retrieved_doc.get("monitorExpireTime")
@@ -368,21 +367,25 @@ def update_subscription(
 
     if sub_validate_time:
         # Update the document
-        json_data = jsonable_encoder(item_in)
-        crud_mongo.update_new_field(db_mongo, db_collection, subscriptionId, json_data)
+        retrieved_doc["subscription"] = jsonable_encoder(item_in)
+        crud_mongo.update_new_field(
+            db_mongo, db_collection, subscriptionId, retrieved_doc
+        )
 
         # Retrieve the updated document | UpdateResult is not a dict
         updated_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)[
             "subscription"
         ]
+
+        updated_doc["subscription"].pop("owner_id")
         updated_doc.pop("owner_id")
 
         http_response = JSONResponse(content=updated_doc, status_code=200)
         add_notifications(http_request, http_response, False)
         return http_response
-    else:
-        crud_mongo.delete_by_uuid(db_mongo, db_collection, subscriptionId)
-        raise HTTPException(status_code=403, detail="Subscription has expired")
+
+    crud_mongo.delete_by_uuid(db_mongo, db_collection, subscriptionId)
+    raise HTTPException(status_code=403, detail="Subscription has expired")
 
 
 @router.get(
@@ -406,21 +409,23 @@ def read_subscription(
     db_mongo = client.fastapi
 
     try:
-        retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
-    except Exception as ex:
+        id = ObjectId(subscriptionId)
+    except Exception:
         raise HTTPException(
             status_code=400,
             detail="Please enter a valid uuid (24-character hex string)",
         )
 
+    filters = {"_id": id}
+    if not user.is_superuser(current_user):
+        filters = {"owner_id": current_user.id}
+    retrieved_doc = db_mongo[db_collection].find_one(
+        filters, {"_id": False, "subscription": True}
+    )["subscription"]
+
     # Check if the document exists
     if not retrieved_doc:
         raise HTTPException(status_code=404, detail="Subscription not found")
-    # If the document exists then validate the owner
-    if not user.is_superuser(current_user) and (
-        retrieved_doc["owner_id"] != current_user.id
-    ):
-        raise HTTPException(status_code=400, detail="Not enough permissions")
 
     sub_validate_time = tools.check_expiration_time(
         expire_time=retrieved_doc.get("monitorExpireTime")
@@ -432,9 +437,9 @@ def read_subscription(
 
         add_notifications(http_request, http_response, False)
         return http_response
-    else:
-        crud_mongo.delete_by_uuid(db_mongo, db_collection, subscriptionId)
-        raise HTTPException(status_code=403, detail="Subscription has expired")
+
+    crud_mongo.delete_by_uuid(db_mongo, db_collection, subscriptionId)
+    raise HTTPException(status_code=403, detail="Subscription has expired")
 
 
 @router.delete(
@@ -458,23 +463,25 @@ def delete_subscription(
     db_mongo = client.fastapi
 
     try:
-        retrieved_doc = crud_mongo.read_uuid(db_mongo, db_collection, subscriptionId)
-    except Exception as ex:
+        id = ObjectId(subscriptionId)
+    except Exception:
         raise HTTPException(
             status_code=400,
             detail="Please enter a valid uuid (24-character hex string)",
         )
 
+    filters = {"_id": id}
+    if not user.is_superuser(current_user):
+        filters = {"owner_id": current_user.id}
+    retrieved_doc = db_mongo[db_collection].find_one(
+        filters, {"_id": False, "subscription": True}
+    )["subscription"]
+
     # Check if the document exists
     if not retrieved_doc:
         raise HTTPException(status_code=404, detail="Subscription not found")
-    # If the document exists then validate the owner
-    if not user.is_superuser(current_user) and (
-        retrieved_doc["owner_id"] != current_user.id
-    ):
-        raise HTTPException(status_code=400, detail="Not enough permissions")
 
-    crud_mongo.delete_by_uuid(db_mongo, db_collection, subscriptionId)
+    crud_mongo.delete_by_uuid(db_mongo, db_collection, id)
     retrieved_doc.pop("owner_id")
 
     http_response = JSONResponse(content=retrieved_doc, status_code=200)
