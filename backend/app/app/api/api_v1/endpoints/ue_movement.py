@@ -116,7 +116,7 @@ async def movement_loop(supi: str, user: models.User):
 
 
 async def location_notification(
-    ue: UE, old_cell_id: Optional[int], current_cell_id: Optional[int]
+    ue: UE, old_cell_id: Optional[int] = None, current_cell_id: Optional[int] = None
 ):
     db_mongo = client.fastapi
 

@@ -166,7 +166,7 @@ async def create_subscription(
         )
 
     if ue is None:
-        raise HTTPException(status_code=409, detail="UE not found")
+        raise HTTPException(status_code=404, detail="UE not found")
 
     # Check if subscription already exists
     doc = db_mongo[db_collection].find_one(
