@@ -1,7 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Literal, Optional
-
+from typing import Any, Literal, Optional, List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
@@ -12,6 +11,7 @@ from app.api import deps
 from app.crud import crud_mongo
 from app.db.session import client
 from app.models.UE import UE
+from app.models.Cell import Cell
 from app.schemas import Msg
 from app.schemas.monitoringevent import (
     MonitoringType,
@@ -26,11 +26,19 @@ from app.tools.monitoring_callbacks import (
     handle_loss_connectivity_callback,
 )
 
+# Moving devices state
+handovers = dict()
+moving_devices = dict()
+
 # API
-handovers = {}
 router = APIRouter()
 
-moving_devices = dict()
+
+@router.on_event("shutdown")
+def shutdown():
+    logging.warning("Shut down detected stopping all UE movement")
+    moving_devices.clear()
+
 
 Speed = Literal["HIGH", "LOW"]
 
@@ -92,36 +100,51 @@ async def movement_loop(supi: str, user: models.User):
             ) % len(points)
             point = points[current_position_index]
 
-            cell_now, _ = check_distance(point.latitude, point.longitude, cells)
-
-            ue = crud.ue.update_coordinates(
-                db=db, lat=point.latitude, long=point.longitude, db_obj=ue
+            ue, old_cell, new_cell = await update_ue(
+                db, ue, cells, point.latitude, point.longitude
             )
 
-            logging.info("The current cell is %d", cell_now)
-            if cell_now and ue.Cell_id != cell_now.id:
-                handovers[ue.supi].append(cell_now.id)
-                ue.Cell_id = cell_now.id
-                crud.ue.update(
-                    db=db,
-                    db_obj=ue,
-                    obj_in={"Cell_id": ue.Cell_id},
-                )
-
-            await location_notification(
-                ue, ue.Cell_id, cell_now.id if cell_now else None
-            )
+            await location_notification(ue, old_cell, new_cell)
 
             await asyncio.sleep(1)
 
 
+async def update_ue(
+    db: Session, ue: UE, cells: List[Cell], latitude: float, longitude: float
+) -> tuple[UE, Optional[str], Optional[str]]:
+    cell_now, _ = check_distance(latitude, longitude, cells)
+
+    ue = crud.ue.update_coordinates(db=db, lat=latitude, long=longitude, db_obj=ue)
+
+    logging.info("The current cell is %d", cell_now)
+
+    old_cell = ue.Cell.cell_id if ue.Cell is not None else None
+    new_cell = cell_now.cell_id if cell_now is not None else None
+
+    new_cell_id = cell_now.id if cell_now is not None else None
+    if ue.Cell_id != new_cell_id:
+        ue.Cell_id = new_cell_id
+        ue.Cell = cell_now
+
+        crud.ue.update(
+            db=db,
+            db_obj=ue,
+            obj_in={"Cell_id": ue.Cell_id},
+        )
+
+        if cell_now:
+            handovers[ue.supi].append(cell_now.id)
+
+    return ue, old_cell, new_cell
+
+
 async def location_notification(
-    ue: UE, old_cell_id: Optional[int] = None, current_cell_id: Optional[int] = None
+    ue: UE, old_cell_id: Optional[str], current_cell_id: Optional[str]
 ):
     db_mongo = client.fastapi
 
-    subscriptions = list(
-        db_mongo["MonitoringEvent"].find({"supi": str(ue.supi)}, {"subscription": True})
+    subscriptions = db_mongo["MonitoringEvent"].find(
+        {"supi": str(ue.supi)}, {"subscription": True}
     )
 
     for doc in subscriptions:
@@ -160,30 +183,31 @@ async def location_notification(
 
 
 @router.post("/update_location/{supi}", status_code=204)
-def update_location(
+async def update_location(
     *,
     supi: str = Path(...),
     new_location: Point,
+    db: Session = Depends(deps.get_db),
     background_tasks: BackgroundTasks,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    with db_context() as db:
-        ue = crud.ue.get_supi(db, supi)
+    ue = crud.ue.get_supi(db, supi)
 
-        if not ue:
-            raise HTTPException(
-                status_code=404,
-                detail="No device found",
-            )
-
-        ue = crud.ue.update_coordinates(
-            db,
-            lat=new_location.point.lat,
-            long=new_location.point.lon,
-            db_obj=ue,
+    if ue is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No device found",
         )
 
-    background_tasks.add_task(location_notification, ue)
+    ue, old_cell, new_cell = await update_ue(
+        db,
+        ue,
+        crud.cell.get_multi_by_owner(db=db, owner_id=current_user.id),
+        new_location.point.lat,
+        new_location.point.lon,
+    )
+
+    background_tasks.add_task(location_notification, ue, old_cell, new_cell)
 
     return {"msg": "Location updated"}
 

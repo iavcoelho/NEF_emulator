@@ -1,12 +1,12 @@
 import math
-from typing import List
-from app.models.UE import UE
+from typing import List, Optional
 from app.models.Cell import Cell
 
 
 def distance(
-    lat1, lon1, lat2, lon2
-):  # Haversine formula: determines the great-circle distance between two points on a sphere given their longitudes and latitudes.
+    lat1: float, lon1: float, lat2: float, lon2: float
+) -> float: 
+    # Haversine formula: determines the great-circle distance between two points on a sphere given their longitudes and latitudes.
     R = 6371e3
     φ1 = lat1 * math.pi / 180  # φ, λ in radians
     φ2 = lat2 * math.pi / 180
@@ -23,7 +23,7 @@ def distance(
     return d
 
 
-def check_distance(lat, lon, cells: List[Cell]):
+def check_distance(lat: float, lon: float, cells: List[Cell]) -> tuple[Optional[Cell], dict[str, float]]:
 
     # logging.info(f"Current cell {current_cell}")
     current_cell = None
@@ -39,4 +39,3 @@ def check_distance(lat, lon, cells: List[Cell]):
                 current_cell = cell
 
     return current_cell, distances
-

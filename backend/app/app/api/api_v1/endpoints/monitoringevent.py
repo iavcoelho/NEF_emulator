@@ -1,9 +1,9 @@
-import asyncio
 from ipaddress import IPv4Address
 from typing import Any, List
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     HTTPException,
     Path,
@@ -33,12 +33,11 @@ from app.schemas.monitoringevent import (
     Point,
     SupportedGADShapes,
 )
-
-from .ue_movement import (
+from app.tools.monitoring_callbacks import (
     handle_location_report_callback,
-    handle_loss_connectivity_callback,
-    handle_ue_reachability_callback,
+    send_ue_reachability_callback,
 )
+
 from .utils import ReportLogging
 
 router = APIRouter()
@@ -108,8 +107,10 @@ def monitoring_notification(body: schemas.MonitoringNotification):
 
 @router.post(
     "/{scsAsId}/subscriptions",
-    response_model=schemas.MonitoringEventSubscription,
-    responses={201: {"model": schemas.MonitoringEventSubscription}},
+    responses={
+        200: {"model": schemas.MonitoringEventReport},
+        201: {"model": schemas.MonitoringEventSubscription},
+    },
     callbacks=monitoring_callback_router.routes,
 )
 async def create_subscription(
@@ -121,6 +122,7 @@ async def create_subscription(
     ),
     db: Session = Depends(deps.get_db),
     item_in: schemas.MonitoringEventSubscription,
+    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request,
 ) -> Any:
@@ -131,6 +133,13 @@ async def create_subscription(
         raise HTTPException(
             status_code=400, detail="The self attribute must not be set"
         )
+
+    if item_in.monitoringType not in (
+        MonitoringType.LOCATION_REPORTING,
+        MonitoringType.LOSS_OF_CONNECTIVITY,
+        MonitoringType.UE_REACHABILITY,
+    ):
+        raise HTTPException(status_code=400, detail="Unsupported monitoring type")
 
     db_mongo = client.fastapi
 
@@ -153,9 +162,7 @@ async def create_subscription(
         )
 
     elif item_in.msisdn:
-        ue = crud_ue.get_msisdn(
-            db=db, msisdn=item_in.msisdn, owner_id=current_user.id
-        )
+        ue = crud_ue.get_msisdn(db=db, msisdn=item_in.msisdn, owner_id=current_user.id)
 
     if not ue:
         raise HTTPException(
@@ -221,7 +228,7 @@ async def create_subscription(
     item_in.ipv4Addr = IPv4Address(ue.ip_address_v4)
     json_data = jsonable_encoder(item_in.dict(exclude_unset=True))
 
-    inserted_doc = crud_mongo.create(
+    crud_mongo.create(
         db_mongo,
         db_collection,
         {
@@ -232,64 +239,27 @@ async def create_subscription(
         },
     )
 
-    if item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
-        # Create the reference resource and location header
-        response_header = {"Location": str(item_in.self)}
-
-        if item_in.immediateRep:
-            asyncio.create_task(handle_location_report_callback(json_data, ue, id))
-
-        http_response = JSONResponse(
-            content=json_data, status_code=201, headers=response_header
-        )
-        add_notifications(http_request, http_response, False)
-
-        return http_response
-    if item_in.monitoringType in (
-        MonitoringType.LOSS_OF_CONNECTIVITY,
-        MonitoringType.UE_REACHABILITY,
-    ):
-        # Check if subscription with externalid && monitoringType exists
-        if crud_mongo.read_by_multiple_pairs(
-            db_mongo,
-            db_collection,
-            externalId=item_in.externalId and item_in.externalId,
-            monitoringType=item_in.monitoringType,
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail=f"There is already an active subscription for UE with external id {item_in.externalId} - Monitoring Type = {item_in.monitoringType}",
-            )
-
+    if item_in.immediateRep:
+        # LOSS_OF_CONNECTIVITY isn't considered for `immediateRep` because the UE cannot lose connectivity immediately
         if (
-            item_in.immediateRep
-            and item_in.monitoringType == MonitoringType.LOSS_OF_CONNECTIVITY
+            item_in.monitoringType == MonitoringType.UE_REACHABILITY
+            and ue.Cell_id is not None
         ):
-            asyncio.create_task(
-                handle_loss_connectivity_callback(
-                    inserted_doc, ue, id, ue.Cell_id, ue.Cell_id
-                )
+            background_tasks.add_task(send_ue_reachability_callback, json_data, ue, id)
+        elif item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
+            background_tasks.add_task(
+                handle_location_report_callback, json_data, ue, id
             )
 
-        elif (
-            item_in.immediateRep
-            and item_in.monitoringType == MonitoringType.UE_REACHABILITY
-        ):
-            asyncio.create_task(
-                handle_ue_reachability_callback(
-                    inserted_doc, ue, id, ue.Cell_id, ue.Cell_id
-                )
-            )
+    # Add the location header pointing to created resource
+    response_header = {"Location": str(item_in.self)}
 
-        # Create the reference resource and location header
-        response_header = {"Location": str(item_in.self)}
+    http_response = JSONResponse(
+        content=json_data, status_code=201, headers=response_header
+    )
+    add_notifications(http_request, http_response, False)
 
-        http_response = JSONResponse(
-            content=json_data, status_code=201, headers=response_header
-        )
-        add_notifications(http_request, http_response, False)
-
-        return http_response
+    return http_response
 
 
 @router.put(
