@@ -28,12 +28,8 @@ def get_db() -> Generator:
 
 
 @contextmanager
-def db_context():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def db_context() -> Generator:
+    yield from get_db()
 
 
 def get_current_user(
