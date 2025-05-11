@@ -1,13 +1,9 @@
-import json
 import logging
-from re import sub
-import requests
 import asyncio
-from typing import Optional, List
+from typing import Optional
 from app import crud
 
 from app.core.notification_responder import notification_responder
-from app.crud.crud_mongo import update
 from app.models.UE import UE
 from app.db.session import client
 from app.schemas.monitoringevent import (
@@ -40,15 +36,10 @@ async def handle_location_report_callback(location_reporting_sub, ue: UE, doc_id
         location_reporting_sub.get("notificationDestination"),
     )
 
-    notification = MonitoringNotification(
-        subscription=location_reporting_sub.get("self"),
-        monitoringEventReports=[
-            MonitoringEventReport(
+    report = MonitoringEventReport(
                 externalId=ue.external_identifier,
                 monitoringType=MonitoringType.LOCATION_REPORTING,
                 locationInfo=LocationInfo(
-                    cellId=ue.Cell_id,
-                    enodeBId=None,
                     geographicArea=Point(
                         shape=SupportedGADShapes.POINT,
                         point=GeographicalCoordinates(
@@ -58,7 +49,13 @@ async def handle_location_report_callback(location_reporting_sub, ue: UE, doc_id
                     ),
                 ),
             )
-        ],
+
+    if ue.Cell_id is not None and report.locationInfo is not None:
+        report.locationInfo.cellId = ue.Cell.cell_id
+
+    notification = MonitoringNotification(
+        subscription=location_reporting_sub.get("self"),
+        monitoringEventReports=[report],
     )
 
     try:

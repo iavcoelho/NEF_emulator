@@ -1,5 +1,5 @@
 import asyncio
-import logging
+from ipaddress import IPv4Address
 from typing import Any, List
 
 from fastapi import (
@@ -15,7 +15,6 @@ from fastapi.responses import JSONResponse
 from pydantic import parse_obj_as
 from sqlalchemy.orm import Session
 from bson.objectid import ObjectId
-from pydantic import parse_obj_as
 from pymongo.collection import ReturnDocument
 
 from app import models, schemas, tools
@@ -32,15 +31,13 @@ from app.schemas.monitoringevent import (
     MonitoringEventReport,
     MonitoringType,
     Point,
+    SupportedGADShapes,
 )
-from app.schemas.commonData import Link
-from app.crud import crud_mongo, ue as crud_ue, user
 
 from .ue_movement import (
     handle_location_report_callback,
     handle_loss_connectivity_callback,
     handle_ue_reachability_callback,
-    validate_ue,
 )
 from .utils import ReportLogging
 
@@ -152,12 +149,12 @@ async def create_subscription(
 
     elif item_in.externalId:
         ue = crud_ue.get_externalId(
-            db=db, externalId=item_in.externalId.__root__, owner_id=current_user.id
+            db=db, externalId=item_in.externalId, owner_id=current_user.id
         )
 
     elif item_in.msisdn:
         ue = crud_ue.get_msisdn(
-            db=db, msisdn=item_in.msisdn.__root__, owner_id=current_user.id
+            db=db, msisdn=item_in.msisdn, owner_id=current_user.id
         )
 
     if not ue:
@@ -184,7 +181,7 @@ async def create_subscription(
                 monitoringType=item_in.monitoringType,
                 locationInfo=LocationInfo(
                     geographicArea=Point(
-                        shape="POINT",
+                        shape=SupportedGADShapes.POINT,
                         point=GeographicalCoordinates(
                             lat=ue.latitude, lon=ue.longitude
                         ),
@@ -192,8 +189,8 @@ async def create_subscription(
                 ),
             )
 
-            if ue.Cell_id and response.locationInfo:
-                response.locationInfo.cellId = ue.Cell_id
+            if ue.Cell_id is not None and response.locationInfo:
+                response.locationInfo.cellId = ue.Cell.cell_id
 
             serialized_report = jsonable_encoder(response.dict(exclude_unset=True))
 
@@ -221,7 +218,7 @@ async def create_subscription(
 
     # Subscription
 
-    item_in.ipv4Addr = ue.ip_address_v4
+    item_in.ipv4Addr = IPv4Address(ue.ip_address_v4)
     json_data = jsonable_encoder(item_in.dict(exclude_unset=True))
 
     inserted_doc = crud_mongo.create(
@@ -237,7 +234,7 @@ async def create_subscription(
 
     if item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
         # Create the reference resource and location header
-        response_header = {"Location": item_in.self}
+        response_header = {"Location": str(item_in.self)}
 
         if item_in.immediateRep:
             asyncio.create_task(handle_location_report_callback(json_data, ue, id))
@@ -256,7 +253,7 @@ async def create_subscription(
         if crud_mongo.read_by_multiple_pairs(
             db_mongo,
             db_collection,
-            externalId=item_in.externalId and item_in.externalId.__root__,
+            externalId=item_in.externalId and item_in.externalId,
             monitoringType=item_in.monitoringType,
         ):
             raise HTTPException(
@@ -285,7 +282,7 @@ async def create_subscription(
             )
 
         # Create the reference resource and location header
-        response_header = {"Location": item_in.self}
+        response_header = {"Location": str(item_in.self)}
 
         http_response = JSONResponse(
             content=json_data, status_code=201, headers=response_header
