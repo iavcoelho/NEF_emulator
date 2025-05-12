@@ -111,7 +111,7 @@ def update_subscription(
     *,
     scsAsId: str = Path(..., title="The ID of the Netapp that creates a subscription", example="myNetapp"),
     subscriptionId: str = Path(..., title="Identifier of the subscription resource"),
-    item_in: schemas.MonitoringEventSubscriptionCreate,
+    item_in: schemas.MonitoringEventSubscription,
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request
 ) -> Any:

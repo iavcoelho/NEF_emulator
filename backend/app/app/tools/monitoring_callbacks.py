@@ -1,103 +1,139 @@
-import json
+import logging
+import asyncio
+from typing import Optional
+from app import crud
 
-import requests
-
+from app.core.notification_responder import notification_responder
+from app.models.UE import UE
+from app.db.session import client
 from app.schemas.monitoringevent import (
     GeographicalCoordinates,
     LocationInfo,
     MonitoringEventReport,
     MonitoringNotification,
     MonitoringType,
+    ReachabilityType,
     Point,
     SupportedGADShapes,
 )
 
+from app.api.deps import db_context
 
-def location_callback(ue, callbackurl, subscription):
-    url = callbackurl
+
+def update_maximum_reports(sub, id):
+    db_mongo = client.fastapi
+    if sub.get("maximumNumberOfReports") is not None:
+        db_mongo["MonitoringEvent"].find_one_and_update(
+            {"_id": id},
+            {"$inc": {"subscription.maximumNumberOfReports": -1}},
+        )
+
+
+async def handle_location_report_callback(location_reporting_sub, ue: UE, doc_id):
+    logging.info(
+        "Attempting to send the callback to %d",
+        location_reporting_sub.get("notificationDestination"),
+    )
+
+    report = MonitoringEventReport(
+        externalId=ue.external_identifier,
+        monitoringType=MonitoringType.LOCATION_REPORTING,
+        locationInfo=LocationInfo(
+            geographicArea=Point(
+                shape=SupportedGADShapes.POINT,
+                point=GeographicalCoordinates(
+                    lat=ue.latitude,
+                    lon=ue.longitude,
+                ),
+            ),
+        ),
+    )
+
+    if ue.Cell_id is not None and report.locationInfo is not None:
+        report.locationInfo.cellId = ue.Cell.cell_id
 
     notification = MonitoringNotification(
-        subscription=subscription,
+        subscription=location_reporting_sub.get("self"),
+        monitoringEventReports=[report],
+    )
+
+    try:
+        await notification_responder.send_notification(
+            location_reporting_sub.get("notificationDestination"), notification
+        )
+        update_maximum_reports(location_reporting_sub, doc_id)
+    except Exception as ex:
+        raise ex
+
+
+async def handle_loss_connectivity_callback(
+    loss_of_connectivity_sub,
+    ue: UE,
+    doc_id,
+    old_cell_id: Optional[str],
+    current_cell_id: Optional[str],
+):
+    if old_cell_id is None or current_cell_id is not None:
+        return
+
+    if loss_of_connectivity_sub.get("maximumDetectionTime") is not None:
+        await asyncio.sleep(loss_of_connectivity_sub.get("maximumDetectionTime"))
+        with db_context() as db:
+            new_ue = crud.ue.get_supi(db=db, supi=ue.supi)
+            if new_ue is None or new_ue.Cell_id is not None:
+                return
+
+    notification = MonitoringNotification(
+        subscription=loss_of_connectivity_sub.get("self"),
         monitoringEventReports=[
             MonitoringEventReport(
-                externalId=ue.get("external_identifier"),
-                monitoringType=MonitoringType.LOCATION_REPORTING,
-                locationInfo=LocationInfo(
-                    cellId=ue.get("cell_id_hex"),
-                    enodeBId=ue.get("gnb_id_hex"),
-                    geographicArea=Point(
-                        shape=SupportedGADShapes.POINT,
-                        point=GeographicalCoordinates(
-                            lat=ue.get("latitude"),
-                            lon=ue.get("longitude"),
-                        ),
-                    ),
-                ),
+                externalId=ue.external_identifier,
+                monitoringType=MonitoringType.LOSS_OF_CONNECTIVITY,
+                lossOfConnectReason=2,
             )
         ],
     )
-    headers = {"accept": "application/json", "Content-Type": "application/json"}
 
-    # Timeout values according to https://docs.python-requests.org/en/master/user/advanced/#timeouts
-    # First value of the tuple "3.05" corresponds to connect and second "27" to read timeouts
-    # (i.e., connect timeout means that the server is unreachable and read that the server is reachable but the client does not receive a response within 27 seconds)
+    try:
+        await notification_responder.send_notification(
+            loss_of_connectivity_sub.get("notificationDestination"),
+            notification,
+        )
 
-    response = requests.request(
-        "POST",
-        url,
-        headers=headers,
-        data=notification.json(exclude_unset=True),
-        timeout=(3.05, 27),
+        update_maximum_reports(loss_of_connectivity_sub, doc_id)
+    except Exception as ex:
+        raise ex
+
+
+async def handle_ue_reachability_callback(
+    subscription,
+    ue: UE,
+    doc_id,
+    old_cell_id: Optional[str],
+    current_cell_id: Optional[str],
+):
+    if current_cell_id is None or old_cell_id is not None:
+        return
+
+    return await send_ue_reachability_callback(subscription, ue, doc_id)
+
+
+async def send_ue_reachability_callback(subscription, ue: UE, doc_id):
+    notification = MonitoringNotification(
+        subscription=subscription.get("self"),
+        monitoringEventReports=[
+            MonitoringEventReport(
+                externalId=ue.external_identifier,
+                monitoringType=MonitoringType.UE_REACHABILITY,
+                reachabilityType=ReachabilityType.DATA,
+            )
+        ],
     )
 
-    return response
-
-
-def loss_of_connectivity_callback(ue, callbackurl, subscription):
-    url = callbackurl
-
-    payload = json.dumps(
-        {
-            "externalId": ue.get("external_identifier"),
-            "ipv4Addr": ue.get("ip_address_v4"),
-            "subscription": subscription,
-            "monitoringType": "LOSS_OF_CONNECTIVITY",
-            "lossOfConnectReason": 7,
-        }
-    )
-    headers = {"accept": "application/json", "Content-Type": "application/json"}
-
-    # Timeout values according to https://docs.python-requests.org/en/master/user/advanced/#timeouts
-    # First value of the tuple "3.05" corresponds to connect and second "27" to read timeouts
-    # (i.e., connect timeout means that the server is unreachable and read that the server is reachable but the client does not receive a response within 27 seconds)
-
-    response = requests.request(
-        "POST", url, headers=headers, data=payload, timeout=(3.05, 27)
-    )
-
-    return response
-
-
-def ue_reachability_callback(ue, callbackurl, subscription, reachabilityType):
-    url = callbackurl
-
-    payload = json.dumps(
-        {
-            "externalId": ue.get("external_identifier"),
-            "ipv4Addr": ue.get("ip_address_v4"),
-            "subscription": subscription,
-            "monitoringType": "UE_REACHABILITY",
-            "reachabilityType": reachabilityType,
-        }
-    )
-    headers = {"accept": "application/json", "Content-Type": "application/json"}
-
-    # Timeout values according to https://docs.python-requests.org/en/master/user/advanced/#timeouts
-    # First value of the tuple "3.05" corresponds to connect and second "27" to read timeouts
-    # (i.e., connect timeout means that the server is unreachable and read that the server is reachable but the client does not receive a response within 27 seconds)
-
-    response = requests.request(
-        "POST", url, headers=headers, data=payload, timeout=(3.05, 27)
-    )
-
-    return response
+    try:
+        await notification_responder.send_notification(
+            subscription.get("notificationDestination"), notification
+        )
+        update_maximum_reports(subscription, doc_id)
+    except Exception as ex:
+        raise ex

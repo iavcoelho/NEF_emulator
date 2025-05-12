@@ -29,7 +29,7 @@ def read_UE_serving_cell(
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
 
-    ue = retrieve_ue(supi)
+    ue = retrieve_ue(supi, db)
     if ue is None:
         raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
 
@@ -56,10 +56,10 @@ def read_UE_distances(
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
 
-    if retrieve_ue(supi) == None:
+    if retrieve_ue(supi, db) is None:
         raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
 
-    return retrieve_ue_distances(supi, current_user.id)
+    return retrieve_ue_distances(supi, current_user.id, db)
 
 
 @router.get("/{supi}/path_losses")
@@ -75,10 +75,10 @@ def read_UE_losses(
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
 
-    if retrieve_ue(supi) == None:
+    if retrieve_ue(supi, db) is None:
         raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
 
-    return retrieve_ue_path_losses(supi, current_user.id)
+    return retrieve_ue_path_losses(supi, current_user.id, db)
 
 
 @router.get("/{supi}/rsrps")
@@ -94,10 +94,10 @@ def read_UE_rsrps(
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
 
-    if retrieve_ue(supi) == None:
+    if retrieve_ue(supi, db) is None:
         raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
 
-    return retrieve_ue_rsrps(supi, current_user.id)
+    return retrieve_ue_rsrps(supi, current_user.id, db)
 
 
 @router.get("/{supi}/handovers")
@@ -114,7 +114,7 @@ def read_UE_handovers(
     if not crud.user.is_superuser(current_user) and (UE.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="Not enough permissions")
 
-    if retrieve_ue(supi) == None:
+    if retrieve_ue(supi, db) is None:
         raise HTTPException(status_code=400, detail="The emulation needs to be ongoing")
 
     return retrieve_ue_handovers(supi)

@@ -12,6 +12,12 @@ from .utils import ExtraBaseModel
 Link: TypeAlias = AnyHttpUrl
 # DateTime - datetime
 # ExternalId - str -> example: 123456789@domain.com
+ExternalId: TypeAlias = Annotated[
+    str,
+    Field(
+        description='string containing a local identifier followed by "@" and a domain identifier. Both the local identifier and the domain identifier shall be encoded as strings that do not contain any "@" characters. See Clause 4.6.2 of 3GPP TS 23.682 for more information.',
+    ),
+]
 # Msisdn - str -> example: 918369110173
 Msisdn: TypeAlias = Annotated[
     str,
@@ -35,22 +41,85 @@ Msisdn: TypeAlias = Annotated[
 # PacketLossRate - int = Field(None, description="Expressed in tenth of percent.", ge=0, le=1000)
 # GlobalRanNodeId
 # Tai
-# EutraCellId - constr(regex=r'^[A-Fa-f0-9]{7}$')
+EutraCellId: TypeAlias = Annotated[
+    str,
+    Field(
+        regex=r"^[A-Fa-f0-9]{7}$",
+        description='28-bit string identifying an E-UTRA Cell Id as specified in clause 9.3.1.9 of  3GPP TS 38.413, in hexadecimal representation. Each character in the string shall take a  value of "0" to "9", "a" to "f" or "A" to "F" and shall represent 4 bits. The most  significant character representing the 4 most significant bits of the Cell Id shall appear  first in the string, and the character representing the 4 least significant bit of the  Cell Id shall appear last in the string.',
+    ),
+]
 # Nid - constr(regex=r'^[A-Fa-f0-9]{11}$')
-# NrCellId - constr(regex=r'^[A-Fa-f0-9]{9}$')
-# N3IwfId - constr(regex=r'^[A-Fa-f0-9]+$')
+NrCellId: TypeAlias = Annotated[
+    str,
+    Field(
+        regex=r"^[A-Fa-f0-9]{9}$",
+        description='36-bit string identifying an NR Cell Id as specified in clause 9.3.1.7 of 3GPP TS 38.413,  in hexadecimal representation. Each character in the string shall take a value of "0" to "9",  "a" to "f" or "A" to "F" and shall represent 4 bits. The most significant character  representing the 4 most significant bits of the Cell Id shall appear first in the string, and  the character representing the 4 least significant bit of the Cell Id shall appear last in the  string.',
+    ),
+]
+N3IwfId: TypeAlias = Annotated[
+    str,
+    Field(
+        regex=r"^[A-Fa-f0-9]+$",
+        description='This represents the identifier of the N3IWF ID as specified in clause 9.3.1.57 of  3GPP TS 38.413 in hexadecimal representation. Each character in the string shall take a value  of "0" to "9", "a" to "f" or "A" to "F" and shall represent 4 bits. The most significant  character representing the 4 most significant bits of the N3IWF ID shall appear first in the  string, and the character representing the 4 least significant bit of the N3IWF ID shall  appear last in the string.',
+    ),
+]
 # NgeNbId - constr(regex=r'^(MacroNGeNB-[A-Fa-f0-9]{5}|LMacroNGeNB-[A-Fa-f0-9]{6}|SMacroNGeNB-[A-Fa-f0-9]{5})$')
-# WAgfId - constr(regex=r'^[A-Fa-f0-9]+$')
-# TngfId - constr(regex=r'^[A-Fa-f0-9]+$')
-# ENbId - constr(regex=r'^(MacroeNB-[A-Fa-f0-9]{5}|LMacroeNB-[A-Fa-f0-9]{6}|SMacroeNB-[A-Fa-f0-9]{5}|HomeeNB-[A-Fa-f0-9]{7})$')
-# Tac - constr(regex=r'(^[A-Fa-f0-9]{4}$)|(^[A-Fa-f0-9]{6}$)')
+WAgfId: TypeAlias = Annotated[
+    str,
+    Field(
+        regex=r"^[A-Fa-f0-9]+$",
+        description='This represents the identifier of the W-AGF ID as specified in clause 9.3.1.162 of  3GPP TS 38.413 in hexadecimal representation. Each character in the string shall take a value  of "0" to "9", "a" to "f" or "A" to "F" and shall represent 4 bits. The most significant  character representing the 4 most significant bits of the W-AGF ID shall appear first in the  string, and the character representing the 4 least significant bit of the W-AGF ID shall  appear last in the string.',
+    ),
+]
+TngfId: TypeAlias = Annotated[
+    str,
+    Field(
+        regex=r"^[A-Fa-f0-9]+$",
+        description='This represents the identifier of the TNGF ID as specified in clause 9.3.1.161 of  3GPP TS 38.413  in hexadecimal representation. Each character in the string shall take a value of "0" to "9", "a"  to "f" or "A" to "F" and shall represent 4 bits. The most significant character representing the  4 most significant bits of the TNGF ID shall appear first in the string, and the character  representing the 4 least significant bit of the TNGF ID shall appear last in the string.',
+    ),
+]
+ENbId: TypeAlias = Annotated[
+    str,
+    Field(
+        regex=r"^(MacroeNB-[A-Fa-f0-9]{5}|LMacroeNB-[A-Fa-f0-9]{6}|SMacroeNB-[A-Fa-f0-9]{5}|HomeeNB-[A-Fa-f0-9]{7})$",
+        description='This represents the identifier of the eNB ID as specified in clause 9.2.1.37 of  3GPP TS 36.413. The string shall be formatted with the following pattern  \'^(\'MacroeNB-[A-Fa-f0-9]{5}|LMacroeNB-[A-Fa-f0-9]{6}|SMacroeNB-[A-Fa-f0-9]{5} |HomeeNB-[A-Fa-f0-9]{7})$\'. The value of the eNB ID shall be encoded in hexadecimal representation. Each character in the  string shall take a value of "0" to "9", "a" to "f" or "A" to "F" and shall represent 4 bits.  The padding 0 shall be added to make multiple nibbles, so the most significant character  representing the padding 0 if required together with the 4 most significant bits of the eNB ID  shall appear first in the string, and the character representing the 4 least significant bit  of the eNB ID (to form a nibble) shall appear last in the string.',
+    ),
+]
+Tac = Annotated[
+    str,
+    Field(
+        regex=r"(^[A-Fa-f0-9]{4}$)|(^[A-Fa-f0-9]{6}$)",
+        description='2 or 3-octet string identifying a tracking area code as specified in clause 9.3.3.10  of 3GPP TS 38.413, in hexadecimal representation. Each character in the string shall  take a value of "0" to "9", "a" to "f" or "A" to "F" and shall represent 4 bits. The most significant character representing the 4 most significant bits of the TAC shall  appear first in the string, and the character representing the 4 least significant bit  of the TAC shall appear last in the string.',
+    ),
+]
+NgeNbId: TypeAlias = Annotated[
+    str,
+    Field(
+        regex=r"^(MacroNGeNB-[A-Fa-f0-9]{5}|LMacroNGeNB-[A-Fa-f0-9]{6}|SMacroNGeNB-[A-Fa-f0-9]{5})$",
+        description='This represents the identifier of the ng-eNB ID as specified in clause 9.3.1.8 of  3GPP TS 38.413. The value of the ng-eNB ID shall be encoded in hexadecimal representation.  Each character in the string shall take a value of "0" to "9", "a" to "f" or "A" to "F" and  shall represent 4 bits. The padding 0 shall be added to make multiple nibbles, so the most  significant character representing the padding 0 if required together with the 4 most  significant bits of the ng-eNB ID shall appear first in the string, and the character  representing the 4 least significant bit of the ng-eNB ID (to form a nibble) shall appear last  in the string.',
+        example="SMacroNGeNB-34B89",
+    ),
+]
 # PduSessionId - int -> ge = 0, le = 255
 # UserLocation
 # Supi - constr(regex=r'^(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+|.+)$')
-# Bytes - constr(regex=r'^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$')
-# HfcNodeId ---> str = Field(None, description="REpresents the HFC Node Identifer received over NGAP.", max_digits=6)
-# Gli - Bytes
-# Gci: str = Field(None, description="Global Cable Identifier uniquely identifying the connection between the 5G-CRG or FN-CRG to the 5GS. See clause 28.15.4 of 3GPP TS 23.003. This shall be encoded as a string per clause 28.15.4 of 3GPP TS 23.003, and compliant with the syntax specified in clause 2.2 of IETF RFC 7542 for the username part of a NAI. The GCI value is specified in CableLabs WR-TR-5WWC-ARCH.")
+Bytes: TypeAlias = Annotated[
+    str, Field(description="string with format 'bytes' as defined in OpenAPI")
+]
+HfcNId: TypeAlias = Annotated[
+    str,
+    Field(
+        max_length=6,
+        description="This IE represents the identifier of the HFC node Id as specified in CableLabs WR-TR-5WWC-ARCH. It is provisioned by the wireline operator as part of wireline operations and may contain up to six characters.",
+    ),
+]
+Gli: TypeAlias = Bytes
+Gci: TypeAlias = Annotated[
+    str,
+    Field(
+        description="Global Cable Identifier uniquely identifying the connection between the 5G-CRG or FN-CRG to the 5GS. See clause 28.15.4 of 3GPP TS 23.003. This shall be encoded as a string per clause 28.15.4 of 3GPP TS 23.003, and compliant with the syntax specified  in clause 2.2  of IETF RFC 7542 for the username part of a NAI. The GCI value is specified in CableLabs WR-TR-5WWC-ARCH.",
+    ),
+]
 # ArfcnValueNR - int = Field(None, description="", ge=0, le=3279165)
 # RatType
 # 5Qi - int = Field(None, description="", ge=0, le=255)
@@ -82,6 +151,14 @@ DurationSec: TypeAlias = Annotated[
     Field(
         ge=0,
         description="Unsigned integer identifying a period of time in units of seconds.",
+    ),
+]
+
+DurationMin: TypeAlias = Annotated[
+    int,
+    Field(
+        ge=0,
+        description="Unsigned integer identifying a period of time in units of minutes.",
     ),
 ]
 
@@ -280,9 +357,10 @@ AverWindow: TypeAlias = Annotated[
 
 # TS 29.514
 class AlternativeServiceRequirementsData(ExtraBaseModel):
-    altQosParamSetRef: str = Field(
-        ..., description="Reference to this alternative QoS related parameter set."
-    )
+    altQosParamSetRef: Annotated[
+        str,
+        Field(description="Reference to this alternative QoS related parameter set."),
+    ]
     gbrUl: Optional[BitRate] = None
     gbrDl: Optional[BitRate] = None
     pdb: Optional[PacketDelBudget] = None
@@ -413,7 +491,7 @@ class EthFlowDescription(ExtraBaseModel):
     fDesc: Optional[FlowDescription] = None
     fDir: Optional[FlowDirection] = None
     sourceMacAddr: Optional[MacAddr48] = None
-    vlanTags: Optional[List[str]] = Field(None, max_items=2, min_items=1)
+    vlanTags: Annotated[Optional[List[str]], Field(max_items=2, min_items=1)] = None
     srcMacAddrEnd: Optional[MacAddr48] = None
     destMacAddrEnd: Optional[MacAddr48] = None
 
@@ -718,8 +796,21 @@ class Ncgi(ExtraBaseModel):
 class GNbId(ExtraBaseModel):
     """Provides the G-NB identifier."""
 
-    bitLength: int = Field(None, description="", ge=22, le=32)
-    gNBValue: Annotated[str, Field(regex=r"^[A-Fa-f0-9]{6,8}$")]
+    bitLength: Annotated[
+        Optional[int],
+        Field(
+            ge=22,
+            le=32,
+            description="Unsigned integer representing the bit length of the gNB ID as defined in clause 9.3.1.6 of 3GPP TS 38.413 [11], within the range 22 to 32.",
+        ),
+    ] = None
+    gNBValue: Annotated[
+        str,
+        Field(
+            regex=r"^[A-Fa-f0-9]{6,8}$",
+            description='This represents the identifier of the gNB. The value of the gNB ID shall be encoded in hexadecimal representation. Each character in the string shall take a value of "0" to "9", "a" to "f" or "A" to "F" and shall represent 4 bits. The padding 0 shall be added to make multiple nibbles,  the most significant character representing the padding 0 if required together with the 4 most significant bits of the gNB ID shall appear first in the string, and the character representing the 4 least significant bit of the gNB ID shall appear last in the string.',
+        ),
+    ]
 
 
 # TS 29.571
@@ -761,33 +852,77 @@ class Tai(ExtraBaseModel):
 
 # TS 29.571
 class EutraLocation(ExtraBaseModel):
-    """Contains the E-UTRA user location."""
-
     tai: Tai
-    ignoreTai: bool = Field(False)
+    ignoreTai: Optional[bool] = False
     ecgi: Ecgi
-    ignoreEcgi: bool = Field(False)
-    ageOfLocationInformation: int = Field(None, description="", ge=0, le=32767)
-    ueLocationTimestamp: datetime
-    geographicalInformation: Annotated[str, Field(regex=r"^[0-9A-F]{16}$")]
-    geodeticInformation: Annotated[str, Field(regex=r"^[0-9A-F]{20}$")]
-    globalNgenbId: GlobalRanNodeId
-    globalENbId: GlobalRanNodeId
+    ignoreEcgi: Annotated[
+        bool,
+        Field(
+            description="This flag when present shall indicate that the Ecgi shall be ignored When present, it shall be set as follows: - true: ecgi shall be ignored. - false (default): ecgi shall not be ignored.",
+        ),
+    ] = False
+    ageOfLocationInformation: Annotated[
+        Optional[int],
+        Field(
+            ge=0,
+            le=32767,
+            description='The value represents the elapsed time in minutes since the last network contact of the mobile station.  Value "0" indicates that the location information was obtained after a successful paging procedure for Active Location Retrieval when the UE is in idle mode or after a successful NG-RAN location reporting procedure with the eNB when the UE is in connected mode.  Any other value than "0" indicates that the location information is the last known one.  See 3GPP TS 29.002 clause 17.7.8.',
+        ),
+    ] = None
+    ueLocationTimestamp: Optional[datetime] = None
+    geographicalInformation: Annotated[
+        Optional[str],
+        Field(
+            regex=r"^[0-9A-F]{16}$",
+            description="Refer to geographical Information. See 3GPP TS 23.032 clause 7.3.2. Only the description of an ellipsoid point with uncertainty circle is allowed to be used.\n",
+        ),
+    ] = None
+    geodeticInformation: Annotated[
+        Optional[str],
+        Field(
+            regex=r"^[0-9A-F]{20}$",
+            description="Refers to Calling Geodetic Location. See ITU-T Recommendation Q.763 (1999) [24] clause 3.88.2. Only the description of an ellipsoid point with uncertainty circle is allowed to be used.",
+        ),
+    ] = None
+    globalNgenbId: Optional[GlobalRanNodeId] = None
+    globalENbId: Optional[GlobalRanNodeId] = None
 
 
 # TS 29.571
+class PlmnIdNid(ExtraBaseModel):
+    mcc: int
+    mnc: int
+    nid: Optional[Nid] = None
+
+
+class NtnTaiInfo(ExtraBaseModel):
+    plmnId: PlmnIdNid
+    tacList: Annotated[List[Tac], Field(min_items=1)]
+    derivedTac: Optional[Tac] = None
+
+
 class NrLocation(ExtraBaseModel):
     """Contains the NR user location."""
 
     tai: Tai
-    ignoreTai: bool = Field(False)
+    ignoreTai: bool = False
     ncgi: Ncgi
-    ignoreNcgi: bool = Field(False)
-    ageOfLocationInformation: int = Field(None, description="", ge=0, le=32767)
+    ignoreNcgi: bool = False
+    ageOfLocationInformation: Annotated[
+        Optional[int],
+        Field(
+            ge=0,
+            le=32767,
+            description='The value represents the elapsed time in minutes since the last network contact of the mobile station. Value "0" indicates that the location information was obtained after a successful paging procedure for Active Location Retrieval when the UE is in idle mode or after a successful  NG-RAN location reporting procedure with the eNB when the UE is in connected mode. Any other value than "0" indicates that the location information is the last known one. See 3GPP TS 29.002 clause 17.7.8.',
+        ),
+    ] = None
     ueLocationTimestamp: datetime
-    geographicalInformation: Annotated[str, Field(regex=r"^[0-9A-F]{16}$")]
-    geodeticInformation: Annotated[str, Field(regex=r"^[0-9A-F]{20}$")]
-    globalGnbId: GlobalRanNodeId
+    geographicalInformation: Annotated[
+        Optional[str], Field(regex=r"^[0-9A-F]{16}$")
+    ] = None
+    geodeticInformation: Annotated[Optional[str], Field(regex=r"^[0-9A-F]{20}$")] = None
+    globalGnbId: Optional[GlobalRanNodeId] = None
+    ntnTaiInfo: Optional[NtnTaiInfo] = None
 
 
 # TS 29.571
@@ -843,10 +978,29 @@ class UtraLocation(ExtraBaseModel):
     sai: ServiceAreaId
     lai: LocationAreaId
     rai: RoutingAreaId
-    ageOfLocationInformation: int = Field(None, description="", ge=0, le=32767)
-    ueLocationTimestamp: datetime
-    geographicalInformation: Annotated[str, Field(regex=r"^[0-9A-F]{16}$")]
-    geodeticInformation: Annotated[str, Field(regex=r"^[0-9A-F]{20}$")]
+    ageOfLocationInformation: Annotated[
+        Optional[int],
+        Field(
+            ge=0,
+            le=32767,
+            description='The value represents the elapsed time in minutes since the last network contact of the mobile station.  Value "0" indicates that the location information was obtained after a successful paging procedure for  Active Location Retrieval when the UE is in idle mode\n or after a successful location reporting procedure  the UE is in connected mode. Any\nother value than "0" indicates that the location information is the last known one.  See 3GPP TS 29.002 clause 17.7.8.',
+        ),
+    ] = None
+    ueLocationTimestamp: Optional[datetime] = None
+    geographicalInformation: Annotated[
+        Optional[str],
+        Field(
+            regex=r"^[0-9A-F]{16}$",
+            description="Refer to geographical Information.See 3GPP TS 23.032 clause 7.3.2. Only the description of an ellipsoid point with uncertainty circle is allowed to be used.",
+        ),
+    ] = None
+    geodeticInformation: Annotated[
+        Optional[str],
+        Field(
+            regex=r"^[0-9A-F]{20}$",
+            description="Refers to Calling Geodetic Location. See ITU-T\xa0Recommendation Q.763 (1999) clause 3.88.2. Only the description of an ellipsoid point with uncertainty circle is allowed to be used.",
+        ),
+    ]
 
 
 # TS 29.571
@@ -865,98 +1019,109 @@ class LineType(str, Enum):
 class TnapId(ExtraBaseModel):
     """Contain the TNAP Identifier see clause5.6.2 of 3GPP TS 23.501."""
 
-    ssId: str = Field(
-        None,
-        description="This IE shall be present if the UE is accessing the 5GC via a trusted WLAN access network.When present, it shall contain the SSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012. ",
-    )
-    bssId: Optional[str] = Field(
-        None,
-        description="When present, it shall contain the BSSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012.",
-    )
-    civicAddress: Annotated[
-        str,
+    ssId: Annotated[
+        Optional[str],
         Field(
-            regex=r"^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+            description="This IE shall be present if the UE is accessing the 5GC via a trusted WLAN access network.When present, it shall contain the SSID of the access point to which the UE is attached, that is received over NGAP,  see IEEE Std 802.11-2012.",
         ),
-    ]
+    ] = None
+    bssId: Annotated[
+        Optional[str],
+        Field(
+            description="When present, it shall contain the BSSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012.",
+        ),
+    ] = None
+    civicAddress: Optional[Bytes] = None
 
 
 # TS 29.571
 class TwapId(ExtraBaseModel):
     """Contain the TWAP Identifier as defined in clause 4.2.8.5.3 of 3GPP TS 23.501 or the WLAN location information as defined in clause 4.5.7.2.8 of 3GPP TS 23.402."""
 
-    ssId: str = Field(
-        None,
-        description="This IE shall contain the SSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012. ",
-    )
-    bssId: Optional[str] = Field(
-        None,
-        description="When present, it shall contain the BSSID of the access point to which the UE is attached, for trusted WLAN access, see IEEE Std 802.11-2012.",
-    )
-    civicAddress: Annotated[
-        str,
+    ssId: Annotated[
+        Optional[str],
         Field(
-            regex=r"^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+            description="This IE shall contain the SSID of the access point to which the UE is attached, that is received over NGAP, see IEEE Std 802.11-2012.",
         ),
-    ]
+    ] = None
+    bssId: Annotated[
+        Optional[str],
+        Field(
+            description="When present, it shall contain the BSSID of the access point to which the UE is attached, for trusted WLAN access, see IEEE Std 802.11-2012.",
+        ),
+    ] = None
+    civicAddress: Optional[Bytes] = None
 
 
 # TS 29.571
-class NThreegaLocation(ExtraBaseModel):
-    """Contains the Non-3GPP access user location."""
+class HfcNodeId(ExtraBaseModel):
+    hfcNId: HfcNId
 
-    n3gppTai: Tai
-    n3IwfId: Annotated[str, Field(regex=r"^[A-Fa-f0-9]+$")]
-    ueIpv4Addr: AnyHttpUrl = Field(
-        None, description="String identifying an Ipv4 address"
-    )
-    ueIpv6Addr: AnyHttpUrl = Field(
-        None, description="String identifying an Ipv6 address"
-    )
-    portNumber: int = Field(None, description="", ge=0)
-    protocol: TransportProtocol
-    tnapId: TnapId
-    twapId: TwapId
-    hfcNodeId: str = Field(
-        None,
-        description="REpresents the HFC Node Identifer received over NGAP.",
-        max_length=6,
-    )
-    gli: Annotated[
-        str,
+
+class N3gaLocation(ExtraBaseModel):
+    n3gppTai: Optional[Tai] = None
+    n3IwfId: Annotated[
+        Optional[str],
         Field(
-            regex=r"^@(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+            regex=r"^[A-Fa-f0-9]+$",
+            description='This IE shall contain the N3IWF identifier received over NGAP and shall be encoded as a  string of hexadecimal characters. Each character in the string shall take a value of "0"  to "9", "a" to "f" or "A" to "F" and shall represent 4 bits. The most significant  character representing the 4 most significant bits of the N3IWF ID shall appear first in  the string, and the character representing the 4 least significant bit of the N3IWF ID  shall appear last in the string.',
         ),
-    ]
-    w5gbanLineType: LineType
-    gci: str = Field(
-        None,
-        description="Global Cable Identifier uniquely identifying the connection between the 5G-CRG or FN-CRG to the 5GS. See clause 28.15.4 of 3GPP TS 23.003. This shall be encoded as a string per clause 28.15.4 of 3GPP TS 23.003, and compliant with the syntax specified in clause 2.2 of IETF RFC 7542 for the username part of a NAI. The GCI value is specified in CableLabs WR-TR-5WWC-ARCH.",
-    )
+    ] = None
+    ueIpv4Addr: Optional[IPv4Address] = None
+    ueIpv6Addr: Optional[IPv6Address] = None
+    portNumber: Optional[Uinteger] = None
+    protocol: Optional[TransportProtocol] = None
+    tnapId: Optional[TnapId] = None
+    twapId: Optional[TwapId] = None
+    hfcNodeId: Optional[HfcNodeId] = None
+    gli: Optional[Gli] = None
+    w5gbanLineType: Optional[LineType] = None
+    gci: Optional[Gci] = None
 
 
 # TS 29.571
 class GeraLocation(ExtraBaseModel):
     """Contains the Non-3GPP access user location."""
 
-    locationNumber: str = Field(
-        None,
-        description="Location number within the PLMN. See 3GPP TS 23.003, clause 4.5. ",
-    )
-    cgi: CellGlobalId
-    rai: RoutingAreaId
-    sai: ServiceAreaId
-    lai: LocationAreaId
-    vlrNumber: str = Field(
-        None, description="VLR number. See 3GPP TS 23.003 clause 5.1."
-    )
-    mscNumber: str = Field(
-        None, description="MSC number. See 3GPP TS 23.003 clause 5.1. "
-    )
-    ageOfLocationInformation: int = Field(None, description="", ge=0, le=32767)
-    ueLocationTimestamp: datetime
-    geographicalInformation: Annotated[str, Field(regex=r"^[0-9A-F]{16}$")]
-    geodeticInformation: Annotated[str, Field(regex=r"^[0-9A-F]{20}$")]
+    locationNumber: Annotated[
+        Optional[str],
+        Field(
+            description="Location number within the PLMN. See 3GPP TS 23.003, clause 4.5.",
+        ),
+    ] = None
+    cgi: Optional[CellGlobalId] = None
+    rai: Optional[RoutingAreaId] = None
+    sai: Optional[ServiceAreaId] = None
+    lai: Optional[LocationAreaId] = None
+    vlrNumber: Annotated[
+        Optional[str], Field(description="VLR number. See 3GPP TS 23.003 clause 5.1.")
+    ] = None
+    mscNumber: Annotated[
+        Optional[str], Field(description="MSC number. See 3GPP TS 23.003 clause 5.1. ")
+    ] = None
+    ageOfLocationInformation: Annotated[
+        Optional[int],
+        Field(
+            ge=0,
+            le=32767,
+            description='The value represents the elapsed time in minutes since the last network contact of the mobile station. Value "0" indicates that the location information was obtained after a successful paging procedure for  Active Location Retrieval when the UE is in idle mode or after a successful location reporting procedure the UE is in connected mode. Any other value than "0" indicates that the location information is the last known one. See 3GPP TS 29.002 clause 17.7.8.',
+        ),
+    ] = None
+    ueLocationTimestamp: Optional[datetime] = None
+    geographicalInformation: Annotated[
+        Optional[str],
+        Field(
+            regex=r"^[0-9A-F]{16}$",
+            description="Refer to geographical Information.See 3GPP TS 23.032 clause 7.3.2. Only the description of an ellipsoid point with uncertainty circle is allowed to be used.",
+        ),
+    ] = None
+    geodeticInformation: Annotated[
+        Optional[str],
+        Field(
+            regex=r"^[0-9A-F]{20}$",
+            description="Refers to Calling Geodetic Location.See ITU-T Recommendation Q.763 (1999) clause 3.88.2.  Only the description of an ellipsoid point with uncertainty circle is allowed to be used.",
+        ),
+    ] = None
 
 
 # TS 29.571
@@ -966,14 +1131,14 @@ class UserLocation(ExtraBaseModel):
 
     eutraLocation: EutraLocation
     nrLocation: NrLocation
-    # n3gaLocation: NThreegaLocation
+    n3gaLocation: N3gaLocation
     utraLocation: UtraLocation
     geraLocation: GeraLocation
 
 
 # TS 29.122
 class DayOfWeek(ExtraBaseModel):
-    day: int = Field(None, description="", ge=1, le=7)
+    day: Annotated[Optional[int], Field(description="", ge=1, le=7)] = None
 
 
 # TS 29.571
@@ -1119,13 +1284,6 @@ class PduSetQosPara(ExtraBaseModel):
         raise ValueError(
             "At least one of the following shall be present: 1) pduSetHandlingInfo and/or 2) both pduSetDelayBudget and pduSetErrRate."
         )
-
-
-# TS 29.571
-class PlmnIdNid(ExtraBaseModel):
-    mcc: int
-    mnc: int
-    nid: Optional[Nid] = None
 
 
 # TS 29.122

@@ -1,37 +1,44 @@
 import asyncio
 import logging
-from typing import Any, Literal, Optional
-
+from typing import Any, Literal, Optional, List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
+from sqlalchemy.orm import Session
 from fastapi.encoders import jsonable_encoder
 
 from app import crud, models, tools
 from app.api import deps
-from app.core.notification_responder import notification_responder
 from app.crud import crud_mongo
-from app.db.session import SessionLocal, client
+from app.db.session import client
 from app.models.UE import UE
+from app.models.Cell import Cell
 from app.schemas import Msg
 from app.schemas.monitoringevent import (
-    GeographicalCoordinates,
-    LocationInfo,
-    MonitoringEventReport,
-    MonitoringNotification,
     MonitoringType,
     Point,
-    ReachabilityType,
-    SupportedGADShapes,
 )
 from app.tools.distance import check_distance
 from app.tools.rsrp_calculation import check_rsrp, check_path_loss
 from app.api.deps import db_context
+from app.tools.monitoring_callbacks import (
+    handle_location_report_callback,
+    handle_ue_reachability_callback,
+    handle_loss_connectivity_callback,
+)
+
+# Moving devices state
+handovers = dict()
+moving_devices = dict()
 
 # API
-handovers = {}
 router = APIRouter()
 
-moving_devices = dict()
+
+@router.on_event("shutdown")
+def shutdown():
+    logging.warning("Shut down detected stopping all UE movement")
+    moving_devices.clear()
+
 
 Speed = Literal["HIGH", "LOW"]
 
@@ -93,41 +100,55 @@ async def movement_loop(supi: str, user: models.User):
             ) % len(points)
             point = points[current_position_index]
 
-            cell_now, _ = check_distance(point.latitude, point.longitude, cells)
-
-            ue = crud.ue.update_coordinates(
-                db=db, lat=point.latitude, long=point.longitude, db_obj=ue
+            ue, old_cell, new_cell = await update_ue(
+                db, ue, cells, point.latitude, point.longitude
             )
 
-            logging.info("The current cell is %d", cell_now)
-            if cell_now and ue.Cell_id != cell_now.id:
-                handovers[ue.supi].append(cell_now.id)
-                ue.Cell_id = cell_now.id
-                crud.ue.update(
-                    db=db,
-                    db_obj=ue,
-                    obj_in={"Cell_id": ue.Cell_id},
-                )
-
-            await location_notification(
-                ue, ue.Cell_id, cell_now.id if cell_now else None
-            )
+            await location_notification(ue, old_cell, new_cell)
 
             await asyncio.sleep(1)
 
 
+async def update_ue(
+    db: Session, ue: UE, cells: List[Cell], latitude: float, longitude: float
+) -> tuple[UE, Optional[str], Optional[str]]:
+    cell_now, _ = check_distance(latitude, longitude, cells)
+
+    ue = crud.ue.update_coordinates(db=db, lat=latitude, long=longitude, db_obj=ue)
+
+    logging.info("The current cell is %d", cell_now)
+
+    old_cell = ue.Cell.cell_id if ue.Cell is not None else None
+    new_cell = cell_now.cell_id if cell_now is not None else None
+
+    new_cell_id = cell_now.id if cell_now is not None else None
+    if ue.Cell_id != new_cell_id:
+        ue.Cell_id = new_cell_id
+        ue.Cell = cell_now
+
+        crud.ue.update(
+            db=db,
+            db_obj=ue,
+            obj_in={"Cell_id": ue.Cell_id},
+        )
+
+        if cell_now:
+            handovers[ue.supi].append(cell_now.id)
+
+    return ue, old_cell, new_cell
+
+
 async def location_notification(
-    ue: UE, old_cell_id: Optional[int], current_cell_id: Optional[int]
+    ue: UE, old_cell_id: Optional[str], current_cell_id: Optional[str]
 ):
     db_mongo = client.fastapi
 
-    subscriptions = list(
-        db_mongo["MonitoringEvent"].find(
-            {"supi": str(ue.supi)},
-        ),
+    subscriptions = db_mongo["MonitoringEvent"].find(
+        {"supi": str(ue.supi)}, {"subscription": True}
     )
 
     for doc in subscriptions:
+        doc_id = doc.get("_id")
         sub = doc["subscription"]
         sub_validate_time = tools.check_expiration_time(
             expire_time=sub.get("monitorExpireTime")
@@ -138,136 +159,55 @@ async def location_notification(
         )
 
         if not sub_validate_time or not sub_validate_number_of_reports:
-            crud_mongo.delete_by_uuid(db_mongo, "MonitoringEvent", doc.get("_id"))
+            crud_mongo.delete_by_uuid(db_mongo, "MonitoringEvent", doc_id)
             continue
-
-        if sub.get("maximumNumberOfReports") is not None:
-            sub["maximumNumberOfReports"] = sub["maximumNumberOfReports"] - 1
-            doc["subscription"] = sub
-            crud_mongo.update(db_mongo, "MonitoringEvent", doc.get("_id"), doc)
 
         monitoringType = sub["monitoringType"]
 
         if monitoringType == MonitoringType.LOCATION_REPORTING:
-            await handle_location_report_callback(sub, ue)
+            asyncio.create_task(handle_location_report_callback(sub, ue, doc_id))
 
         elif monitoringType == MonitoringType.LOSS_OF_CONNECTIVITY:
             asyncio.create_task(
-                handle_loss_connectivity_callback(sub, ue, old_cell_id, current_cell_id)
+                handle_loss_connectivity_callback(
+                    sub, ue, doc_id, old_cell_id, current_cell_id
+                )
             )
 
         elif monitoringType == MonitoringType.UE_REACHABILITY:
-            await handle_ue_reachability_callback(sub, ue, old_cell_id, current_cell_id)
-
-
-async def handle_location_report_callback(location_reporting_sub, ue: UE):
-    db_mongo = client.fastapi
-    logging.info(
-        "Attempting to send the callback to %d",
-        location_reporting_sub.get("notificationDestination"),
-    )
-
-    notification = MonitoringNotification(
-        subscription=location_reporting_sub.get("self"),
-        monitoringEventReports=[
-            MonitoringEventReport(
-                externalId=ue.external_identifier,
-                monitoringType=MonitoringType.LOCATION_REPORTING,
-                locationInfo=LocationInfo(
-                    cellId=ue.Cell_id,
-                    enodeBId=None,
-                    geographicArea=Point(
-                        shape=SupportedGADShapes.POINT,
-                        point=GeographicalCoordinates(
-                            lat=ue.latitude,
-                            lon=ue.longitude,
-                        ),
-                    ),
-                ),
+            asyncio.create_task(
+                handle_ue_reachability_callback(
+                    sub, ue, doc_id, old_cell_id, current_cell_id
+                )
             )
-        ],
-    )
-
-    await notification_responder.send_notification(
-        location_reporting_sub.get("notificationDestination"), notification
-    )
-
-
-async def handle_loss_connectivity_callback(
-    loss_of_connectivity_sub,
-    ue: UE,
-    old_cell_id: Optional[int],
-    current_cell_id: Optional[int],
-):
-    if old_cell_id and not current_cell_id:
-        await asyncio.sleep(loss_of_connectivity_sub.get("maximumDurationTime"))
-        with db_context() as db:
-            new_ue = crud.ue.get_supi(db=db, supi=ue.supi)
-            if new_ue and not new_ue.Cell_id:
-                notification = MonitoringNotification(
-                    subscription=loss_of_connectivity_sub.get("link"),
-                    monitoringEventReports=[
-                        MonitoringEventReport(
-                            externalId=ue.external_identifier,
-                            monitoringType=MonitoringType.LOSS_OF_CONNECTIVITY,
-                            lossOfConnectReason=2,
-                        )
-                    ],
-                )
-
-                await notification_responder.send_notification(
-                    loss_of_connectivity_sub.get("notificationDestination"),
-                    notification,
-                )
-
-    logging.info("There was an attempt at calling the connectivity callback")
-
-
-async def handle_ue_reachability_callback(
-    subscription, ue: UE, old_cell_id: Optional[int], current_cell_id: Optional[int]
-):
-    if current_cell_id and not old_cell_id:
-        notification = MonitoringNotification(
-            subscription=subscription.get("link"),
-            monitoringEventReports=[
-                MonitoringEventReport(
-                    externalId=ue.external_identifier,
-                    monitoringType=MonitoringType.UE_REACHABILITY,
-                    reachabilityType=ReachabilityType.DATA,
-                )
-            ],
-        )
-
-        await notification_responder.send_notification(
-            subscription.get("notificationDestination"), notification
-        )
 
 
 @router.post("/update_location/{supi}", status_code=204)
-def update_location(
+async def update_location(
     *,
     supi: str = Path(...),
     new_location: Point,
+    db: Session = Depends(deps.get_db),
     background_tasks: BackgroundTasks,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    with db_context() as db:
-        ue = crud.ue.get_supi(db, supi)
+    ue = crud.ue.get_supi(db, supi)
 
-        if not ue:
-            raise HTTPException(
-                status_code=404,
-                detail="No device found",
-            )
-
-        ue = crud.ue.update_coordinates(
-            db,
-            lat=new_location.point.lat,
-            long=new_location.point.lon,
-            db_obj=ue,
+    if ue is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No device found",
         )
 
-    background_tasks.add_task(location_notification, ue)
+    ue, old_cell, new_cell = await update_ue(
+        db,
+        ue,
+        crud.cell.get_multi_by_owner(db=db, owner_id=current_user.id),
+        new_location.point.lat,
+        new_location.point.lon,
+    )
+
+    background_tasks.add_task(location_notification, ue, old_cell, new_cell)
 
     return {"msg": "Location updated"}
 
@@ -307,7 +247,7 @@ def terminate_movement(
         moving_devices.pop(msg.supi)
         return {"msg": "Loop ended"}
     except KeyError as ke:
-        logging.warning("Key Not Found in Threads Dictionary:", ke)
+        logging.warning("Key Not Found in Moving Devices Dictionary:", ke)
         raise HTTPException(
             status_code=409,
             detail="There is no generator running for this SUPI",
@@ -329,12 +269,12 @@ def state_movement(
 @router.get("/state-ues", status_code=200)
 def state_ues(
     current_user: models.User = Depends(deps.get_current_active_user),
+    db: Session = Depends(deps.get_db),
 ) -> Any:
     """
     Get the state
     """
-    with db_context() as db:
-        return crud.ue.get_multi_by_owner(db, owner_id=current_user.id)
+    return crud.ue.get_multi_by_owner(db, owner_id=current_user.id)
 
 
 # Functions
@@ -342,46 +282,42 @@ def retrieve_ue_state(supi: str, user_id: int) -> bool:
     return moving_devices.get(supi) is not None
 
 
-def retrieve_ue(supi: str) -> Optional[UE]:
+def retrieve_ue(supi: str, db: Session) -> Optional[UE]:
     if moving_devices.get(supi):
-        with db_context() as db:
-            return crud.ue.get_supi(db, supi)
+        return crud.ue.get_supi(db, supi)
 
     return None
 
 
-def retrieve_ue_distances(supi: str, user_id: int) -> dict:
-    with db_context() as db:
-        ue = crud.ue.get_supi(db, supi)
-        if ue is None:
-            return {}
+def retrieve_ue_distances(supi: str, user_id: int, db: Session) -> dict:
+    ue = crud.ue.get_supi(db, supi)
+    if ue is None:
+        return {}
 
-        cells = crud.cell.get_multi_by_owner(db=db, owner_id=user_id)
+    cells = crud.cell.get_multi_by_owner(db=db, owner_id=user_id)
 
     _, distances = check_distance(ue.latitude, ue.longitude, cells)
     return distances
 
 
-def retrieve_ue_path_losses(supi: str, id) -> dict:
-    with db_context() as db:
-        ue = crud.ue.get_supi(db, supi=supi)
-        if ue is None:
-            return {}
+def retrieve_ue_path_losses(supi: str, id, db: Session) -> dict:
+    ue = crud.ue.get_supi(db, supi=supi)
+    if ue is None:
+        return {}
 
-        cells = crud.cell.get_multi_by_owner(db, owner_id=id)
+    cells = crud.cell.get_multi_by_owner(db, owner_id=id)
 
     return check_path_loss(ue.latitude, ue.longitude, jsonable_encoder(cells))
 
 
-def retrieve_ue_rsrps(supi: str, id) -> dict:
-    with db_context() as db:
-        ue = crud.ue.get_supi(db, supi=supi)
-        if ue is None:
-            return {}
+def retrieve_ue_rsrps(supi: str, id, db: Session) -> dict:
+    ue = crud.ue.get_supi(db, supi=supi)
+    if ue is None:
+        return {}
 
-        cells = crud.cell.get_multi_by_owner(db, owner_id=id)
+    cells = crud.cell.get_multi_by_owner(db, owner_id=id)
 
-    return check_rsrp(ue.latitude, ue.longitude, jsonable_encoder(cells))
+    return check_rsrp(ue.latitude, ue.longitude, cells)
 
 
 def retrieve_ue_handovers(supi: str) -> list:
