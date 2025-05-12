@@ -1,9 +1,9 @@
+import asyncio
 from ipaddress import IPv4Address
 from typing import Any, List
 
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Depends,
     HTTPException,
     Path,
@@ -122,7 +122,6 @@ async def create_subscription(
     ),
     db: Session = Depends(deps.get_db),
     item_in: schemas.MonitoringEventSubscription,
-    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(deps.get_current_active_user),
     http_request: Request,
 ) -> Any:
@@ -245,11 +244,9 @@ async def create_subscription(
             item_in.monitoringType == MonitoringType.UE_REACHABILITY
             and ue.Cell_id is not None
         ):
-            background_tasks.add_task(send_ue_reachability_callback, json_data, ue, id)
+            asyncio.create_task(send_ue_reachability_callback(json_data, ue, id))
         elif item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
-            background_tasks.add_task(
-                handle_location_report_callback, json_data, ue, id
-            )
+            asyncio.create_task(handle_location_report_callback(json_data, ue, id))
 
     # Add the location header pointing to created resource
     response_header = {"Location": str(item_in.self)}
