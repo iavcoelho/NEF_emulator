@@ -317,7 +317,7 @@ def retrieve_ue_rsrps(supi: str, id, db: Session) -> dict:
 
     cells = crud.cell.get_multi_by_owner(db, owner_id=id)
 
-    return check_rsrp(ue.latitude, ue.longitude, jsonable_encoder(cells))
+    return check_rsrp(ue.latitude, ue.longitude, cells)
 
 
 def retrieve_ue_handovers(supi: str) -> list:
