@@ -26,15 +26,15 @@ from app.crud import user
 from app.db.session import client
 from app.schemas.commonData import Link
 from app.schemas.monitoringevent import (
-    GeographicalCoordinates,
-    LocationInfo,
-    MonitoringEventReport,
+    MonitoringEventReports,
     MonitoringType,
-    Point,
-    SupportedGADShapes,
 )
 from app.tools.monitoring_callbacks import (
+    create_location_event_report,
+    create_loss_of_connectivity_event_report,
+    create_ue_reachability_event_report,
     handle_location_report_callback,
+    send_loss_connectivity_callback,
     send_ue_reachability_callback,
 )
 
@@ -133,12 +133,41 @@ async def create_subscription(
             status_code=400, detail="The self attribute must not be set"
         )
 
-    if item_in.monitoringType not in (
-        MonitoringType.LOCATION_REPORTING,
-        MonitoringType.LOSS_OF_CONNECTIVITY,
-        MonitoringType.UE_REACHABILITY,
-    ):
-        raise HTTPException(status_code=400, detail="Unsupported monitoring type")
+    allMonitoringTypes = [item_in.monitoringType]
+
+    if item_in.addnMonTypes is not None:
+        setAddnMonTypes = set(item_in.addnMonTypes)
+
+        if len(item_in.addnMonTypes) != len(setAddnMonTypes):
+            raise HTTPException(
+                status_code=400,
+                detail="The addnMonTypes attribute must not have duplicate values",
+            )
+
+        if item_in.monitoringType in setAddnMonTypes:
+            raise HTTPException(
+                status_code=400,
+                detail="The addnMonTypes attribute must not contain the monitoringType attribute's value",
+            )
+
+        allMonitoringTypes.extend(item_in.addnMonTypes)
+
+    for monType in allMonitoringTypes:
+        if monType not in (
+            MonitoringType.LOCATION_REPORTING,
+            MonitoringType.LOSS_OF_CONNECTIVITY,
+            MonitoringType.UE_REACHABILITY,
+        ):
+            raise HTTPException(status_code=400, detail="Unsupported monitoring type")
+
+        if (
+            monType == MonitoringType.UE_REACHABILITY
+            and item_in.reachabilityType is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="The reachabilityType attribute must be set for UE_REACHABILITY",
+            )
 
     db_mongo = client.fastapi
 
@@ -180,47 +209,37 @@ async def create_subscription(
 
     # One time request
     if item_in.maximumNumberOfReports == 1:
-        if item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
+        reports = []
 
-            response = MonitoringEventReport(
-                msisdn=ue.msisdn,
-                monitoringType=item_in.monitoringType,
-                locationInfo=LocationInfo(
-                    geographicArea=Point(
-                        shape=SupportedGADShapes.POINT,
-                        point=GeographicalCoordinates(
-                            lat=ue.latitude, lon=ue.longitude
-                        ),
-                    ),
-                ),
-            )
+        for monType in allMonitoringTypes:
+            if monType == MonitoringType.LOCATION_REPORTING:
+                reports.append(create_location_event_report(ue))
+            elif monType == MonitoringType.UE_REACHABILITY and ue.Cell_id is not None:
+                assert item_in.reachabilityType is not None
+                reports.append(
+                    create_ue_reachability_event_report(ue, item_in.reachabilityType)
+                )
+            elif monType == MonitoringType.LOSS_OF_CONNECTIVITY and ue.Cell_id is None:
+                reports.append(
+                    create_loss_of_connectivity_event_report(
+                        ue, 6
+                    )  # 6 = UE is deregistered
+                )
 
-            if ue.Cell_id is not None and response.locationInfo:
-                response.locationInfo.cellId = ue.Cell.cell_id
+        if len(reports) > 0:
+            if len(reports) == 1:
+                serialized_res = jsonable_encoder(reports[0].dict(exclude_unset=True))
+            else:
+                serialized_res = jsonable_encoder(
+                    MonitoringEventReports(monitoringEventReports=reports).dict(
+                        exclude_unset=True
+                    )
+                )
 
-            serialized_report = jsonable_encoder(response.dict(exclude_unset=True))
-
-            http_response = JSONResponse(content=serialized_report, status_code=200)
+            http_response = JSONResponse(content=serialized_res, status_code=200)
             add_notifications(http_request, http_response, False)
 
             return http_response
-
-        if item_in.monitoringType in (
-            MonitoringType.LOSS_OF_CONNECTIVITY,
-            MonitoringType.UE_REACHABILITY,
-        ):
-            return JSONResponse(
-                content=jsonable_encoder(
-                    {
-                        "title": "Not Supported",
-                        "invalidParams": {
-                            "param": "maximumNumberOfReports",
-                            "reason": '"maximumNumberOfReports" should be greater than 1 in case of LOSS_OF_CONNECTIVITY or UE_REACHABILITY event',
-                        },
-                    }
-                ),
-                status_code=400,
-            )
 
     # Subscription
 
@@ -239,14 +258,17 @@ async def create_subscription(
     )
 
     if item_in.immediateRep:
-        # LOSS_OF_CONNECTIVITY isn't considered for `immediateRep` because the UE cannot lose connectivity immediately
-        if (
-            item_in.monitoringType == MonitoringType.UE_REACHABILITY
-            and ue.Cell_id is not None
-        ):
-            asyncio.create_task(send_ue_reachability_callback(json_data, ue, id))
-        elif item_in.monitoringType == MonitoringType.LOCATION_REPORTING:
-            asyncio.create_task(handle_location_report_callback(json_data, ue, id))
+        for monType in allMonitoringTypes:
+            if monType == MonitoringType.LOSS_OF_CONNECTIVITY and ue.Cell_id is None:
+                asyncio.create_task(
+                    send_loss_connectivity_callback(
+                        json_data, ue, id, 6  # UE is deregistered
+                    )
+                )
+            elif monType == MonitoringType.UE_REACHABILITY and ue.Cell_id is not None:
+                asyncio.create_task(send_ue_reachability_callback(json_data, ue, id))
+            elif monType == MonitoringType.LOCATION_REPORTING:
+                asyncio.create_task(handle_location_report_callback(json_data, ue, id))
 
     # Add the location header pointing to created resource
     response_header = {"Location": str(item_in.self)}
