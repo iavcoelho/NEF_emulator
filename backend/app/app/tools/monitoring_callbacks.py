@@ -35,6 +35,21 @@ async def handle_location_report_callback(location_reporting_sub, ue: UE, doc_id
         location_reporting_sub.get("notificationDestination"),
     )
 
+    notification = MonitoringNotification(
+        subscription=location_reporting_sub.get("self"),
+        monitoringEventReports=[create_location_event_report(ue)],
+    )
+
+    try:
+        await notification_responder.send_notification(
+            location_reporting_sub.get("notificationDestination"), notification
+        )
+        update_maximum_reports(location_reporting_sub, doc_id)
+    except Exception as ex:
+        raise ex
+
+
+def create_location_event_report(ue: UE) -> MonitoringEventReport:
     report = MonitoringEventReport(
         externalId=ue.external_identifier,
         monitoringType=MonitoringType.LOCATION_REPORTING,
@@ -52,18 +67,7 @@ async def handle_location_report_callback(location_reporting_sub, ue: UE, doc_id
     if ue.Cell_id is not None and report.locationInfo is not None:
         report.locationInfo.cellId = ue.Cell.cell_id
 
-    notification = MonitoringNotification(
-        subscription=location_reporting_sub.get("self"),
-        monitoringEventReports=[report],
-    )
-
-    try:
-        await notification_responder.send_notification(
-            location_reporting_sub.get("notificationDestination"), notification
-        )
-        update_maximum_reports(location_reporting_sub, doc_id)
-    except Exception as ex:
-        raise ex
+    return report
 
 
 async def handle_loss_connectivity_callback(
@@ -76,6 +80,8 @@ async def handle_loss_connectivity_callback(
     if old_cell_id is None or current_cell_id is not None:
         return
 
+    lossOfConnectReason = 6  #  6 = UE is deregistered
+
     if loss_of_connectivity_sub.get("maximumDetectionTime") is not None:
         await asyncio.sleep(loss_of_connectivity_sub.get("maximumDetectionTime"))
         with db_context() as db:
@@ -83,14 +89,20 @@ async def handle_loss_connectivity_callback(
             if new_ue is None or new_ue.Cell_id is not None:
                 return
 
+        lossOfConnectReason = 7  # 7 = Maximum detection timer expires
+
+    await send_loss_connectivity_callback(
+        loss_of_connectivity_sub, ue, doc_id, lossOfConnectReason
+    )
+
+
+async def send_loss_connectivity_callback(
+    loss_of_connectivity_sub, ue: UE, doc_id, lossOfConnectReason: int
+):
     notification = MonitoringNotification(
         subscription=loss_of_connectivity_sub.get("self"),
         monitoringEventReports=[
-            MonitoringEventReport(
-                externalId=ue.external_identifier,
-                monitoringType=MonitoringType.LOSS_OF_CONNECTIVITY,
-                lossOfConnectReason=2,
-            )
+            create_loss_of_connectivity_event_report(ue, lossOfConnectReason)
         ],
     )
 
@@ -103,6 +115,16 @@ async def handle_loss_connectivity_callback(
         update_maximum_reports(loss_of_connectivity_sub, doc_id)
     except Exception as ex:
         raise ex
+
+
+def create_loss_of_connectivity_event_report(
+    ue: UE, lossOfConnectReason: int
+) -> MonitoringEventReport:
+    return MonitoringEventReport(
+        externalId=ue.external_identifier,
+        monitoringType=MonitoringType.LOSS_OF_CONNECTIVITY,
+        lossOfConnectReason=lossOfConnectReason,
+    )
 
 
 async def handle_ue_reachability_callback(
@@ -118,14 +140,16 @@ async def handle_ue_reachability_callback(
     return await send_ue_reachability_callback(subscription, ue, doc_id)
 
 
-async def send_ue_reachability_callback(subscription, ue: UE, doc_id):
+async def send_ue_reachability_callback(
+    subscription,
+    ue: UE,
+    doc_id,
+):
     notification = MonitoringNotification(
         subscription=subscription.get("self"),
         monitoringEventReports=[
-            MonitoringEventReport(
-                externalId=ue.external_identifier,
-                monitoringType=MonitoringType.UE_REACHABILITY,
-                reachabilityType=ReachabilityType.DATA,
+            create_ue_reachability_event_report(
+                ue, subscription.get("reachabilityType")
             )
         ],
     )
@@ -137,3 +161,13 @@ async def send_ue_reachability_callback(subscription, ue: UE, doc_id):
         update_maximum_reports(subscription, doc_id)
     except Exception as ex:
         raise ex
+
+
+def create_ue_reachability_event_report(
+    ue: UE, reachability_type: ReachabilityType
+) -> MonitoringEventReport:
+    return MonitoringEventReport(
+        externalId=ue.external_identifier,
+        monitoringType=MonitoringType.UE_REACHABILITY,
+        reachabilityType=reachability_type,
+    )

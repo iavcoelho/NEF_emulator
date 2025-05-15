@@ -183,17 +183,17 @@ class PointAltitudeUncertainty(GADShape):
 
 
 GeographicArea = Annotated[
-        Union[
-            Point,
-            PointUncertaintyCircle,
-            PointUncertaintyEllipse,
-            Polygon,
-            PointAltitude,
-            PointAltitudeUncertainty,
-            EllipsoidArc,
-        ],
-        Field(description="Geographic area specified by different shape."),
-    ]
+    Union[
+        Point,
+        PointUncertaintyCircle,
+        PointUncertaintyEllipse,
+        Polygon,
+        PointAltitude,
+        PointAltitudeUncertainty,
+        EllipsoidArc,
+    ],
+    Field(description="Geographic area specified by different shape."),
+]
 
 
 class CivicAddress(ExtraBaseModel):
@@ -651,6 +651,10 @@ class MonitoringEventReport(ExtraBaseModel):
     groupMembListChanges: Optional[GroupMembListChanges] = None
     sessInactiveTime: Optional[DurationSec] = None
     trafficInfo: Optional[TrafficInformation] = None
+
+
+class MonitoringEventReports(ExtraBaseModel):
+    monitoringEventReports: Annotated[List[MonitoringEventReport], Field(min_items=1)]
 
 
 class ResultReason(Enum):

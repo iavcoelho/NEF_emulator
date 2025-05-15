@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Any, Literal, Optional, List
+from collections.abc import Generator
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
@@ -138,6 +139,14 @@ async def update_ue(
     return ue, old_cell, new_cell
 
 
+def _get_subscription_mon_types(sub) -> Generator[MonitoringType]:
+    yield sub["monitoringType"]
+
+    if sub.get("addnMonTypes") is not None:
+        for monType in sub.get("addnMonTypes"):
+            yield monType
+
+
 async def location_notification(
     ue: UE, old_cell_id: Optional[str], current_cell_id: Optional[str]
 ):
@@ -162,24 +171,23 @@ async def location_notification(
             crud_mongo.delete_by_uuid(db_mongo, "MonitoringEvent", doc_id)
             continue
 
-        monitoringType = sub["monitoringType"]
+        for monType in _get_subscription_mon_types(sub):
+            if monType == MonitoringType.LOCATION_REPORTING:
+                asyncio.create_task(handle_location_report_callback(sub, ue, doc_id))
 
-        if monitoringType == MonitoringType.LOCATION_REPORTING:
-            asyncio.create_task(handle_location_report_callback(sub, ue, doc_id))
-
-        elif monitoringType == MonitoringType.LOSS_OF_CONNECTIVITY:
-            asyncio.create_task(
-                handle_loss_connectivity_callback(
-                    sub, ue, doc_id, old_cell_id, current_cell_id
+            elif monType == MonitoringType.LOSS_OF_CONNECTIVITY:
+                asyncio.create_task(
+                    handle_loss_connectivity_callback(
+                        sub, ue, doc_id, old_cell_id, current_cell_id
+                    )
                 )
-            )
 
-        elif monitoringType == MonitoringType.UE_REACHABILITY:
-            asyncio.create_task(
-                handle_ue_reachability_callback(
-                    sub, ue, doc_id, old_cell_id, current_cell_id
+            elif monType == MonitoringType.UE_REACHABILITY:
+                asyncio.create_task(
+                    handle_ue_reachability_callback(
+                        sub, ue, doc_id, old_cell_id, current_cell_id
+                    )
                 )
-            )
 
 
 @router.post("/update_location/{supi}", status_code=204)
