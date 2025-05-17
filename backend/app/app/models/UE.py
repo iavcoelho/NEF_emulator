@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-#from sqlalchemy import Boolean, Column, Integer, String
+# from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy import Column, Integer, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
 
@@ -16,7 +16,7 @@ class UE(Base):
     # id for db/primary key
     id = Column(Integer, primary_key=True, index=True)
 
-    #id for UE (representing IMSI)
+    # id for UE (representing IMSI)
     supi = Column(String, index=True)
     name = Column(String, index=True)
     description = Column(String, index=True)
@@ -32,12 +32,12 @@ class UE(Base):
     latitude = Column(Float, index=True)
     longitude = Column(Float, index=True)
     path_id = Column(Integer, index=True)
+    visiting_plmnid = Column(String, nullable=True, default=None)
 
-    #Foreign Keys
+    # Foreign Keys
     owner_id = Column(Integer, ForeignKey("user.id"))
     Cell_id = Column(Integer, ForeignKey("cell.id"))
-    
 
-    #Relationships
+    # Relationships
     owner = relationship("User", back_populates="UEs")
     Cell = relationship("Cell", back_populates="UE")

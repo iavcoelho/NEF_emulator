@@ -407,6 +407,7 @@ function ui_add_btn_listeners_for_UEs_CUD_operations() {
           mcc                 : $('#add_UE_mcc').val(),
           mnc                 : $('#add_UE_mnc').val(),
           dnn                 : $('#add_UE_dnn').val(),
+          visiting_plmnid     : $('#add_UE_vplmnid').val(),
           // location & path
           path_id             : assign_path_id,
           speed               : $('#add_UE_speed').val(),
@@ -414,6 +415,8 @@ function ui_add_btn_listeners_for_UEs_CUD_operations() {
           Cell_id             : 1,
         };
 
+		if (!data.visiting_plmnid)
+			data.visiting_plmnid = null;
 
         add_UE_modal.hide();
 
@@ -442,10 +445,14 @@ function ui_add_btn_listeners_for_UEs_CUD_operations() {
         edit_UE_tmp_obj.description         = $('#edit_UE_description').val();
 
         // network
-        edit_UE_tmp_obj.ip_address_v4 = $('#edit_UE_ipv4').val();
-        edit_UE_tmp_obj.ip_address_v6 = $('#edit_UE_ipv6').val();
-        edit_UE_tmp_obj.mac_address   = $('#edit_UE_mac').val();
-        edit_UE_tmp_obj.msisdn        = $('#edit_UE_msisdn').val();
+        edit_UE_tmp_obj.ip_address_v4   = $('#edit_UE_ipv4').val();
+        edit_UE_tmp_obj.ip_address_v6   = $('#edit_UE_ipv6').val();
+        edit_UE_tmp_obj.mac_address     = $('#edit_UE_mac').val();
+        edit_UE_tmp_obj.msisdn          = $('#edit_UE_msisdn').val();
+        edit_UE_tmp_obj.visiting_plmnid = $('#edit_UE_vplmnid').val();
+
+		if (!edit_UE_tmp_obj.visiting_plmnid)
+			edit_UE_tmp_obj.visiting_plmnid = null;
 
         // location & path
         edit_UE_tmp_obj.path_id = assign_path_id;
@@ -505,6 +512,7 @@ function ui_show_edit_UE_modal( UE_supi ) {
     $('#edit_UE_mcc').val( edit_UE_tmp_obj.mcc );
     $('#edit_UE_mnc').val( edit_UE_tmp_obj.mnc );
     $('#edit_UE_cell').val( edit_UE_tmp_obj.cell_id_hex );
+    $('#edit_UE_vplmnid').val( edit_UE_tmp_obj.visiting_plmnid );
 
     $('#edit_UE_current_lat').val( edit_UE_tmp_obj.latitude );
     $('#edit_UE_current_lon').val( edit_UE_tmp_obj.longitude );
