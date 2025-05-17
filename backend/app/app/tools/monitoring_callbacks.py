@@ -1,8 +1,9 @@
 import logging
 import asyncio
 from typing import Optional
-from app import crud
+from collections.abc import Generator
 
+from app import crud
 from app.core.notification_responder import notification_responder
 from app.models.UE import UE
 from app.db.session import client
@@ -19,6 +20,14 @@ from app.schemas.monitoringevent import (
 )
 
 from app.api.deps import db_context
+
+
+def get_subscription_mon_types(sub) -> Generator[MonitoringType]:
+    yield sub["monitoringType"]
+
+    if sub.get("addnMonTypes") is not None:
+        for monType in sub.get("addnMonTypes"):
+            yield monType
 
 
 def update_maximum_reports(sub, id):

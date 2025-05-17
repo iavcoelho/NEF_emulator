@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from typing import Any, Literal, Optional, List
-from collections.abc import Generator
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
@@ -22,6 +21,7 @@ from app.tools.distance import check_distance
 from app.tools.rsrp_calculation import check_rsrp, check_path_loss
 from app.api.deps import db_context
 from app.tools.monitoring_callbacks import (
+    get_subscription_mon_types,
     handle_location_report_callback,
     handle_ue_reachability_callback,
     handle_loss_connectivity_callback,
@@ -139,14 +139,6 @@ async def update_ue(
     return ue, old_cell, new_cell
 
 
-def _get_subscription_mon_types(sub) -> Generator[MonitoringType]:
-    yield sub["monitoringType"]
-
-    if sub.get("addnMonTypes") is not None:
-        for monType in sub.get("addnMonTypes"):
-            yield monType
-
-
 async def location_notification(
     ue: UE, old_cell_id: Optional[str], current_cell_id: Optional[str]
 ):
@@ -171,7 +163,7 @@ async def location_notification(
             crud_mongo.delete_by_uuid(db_mongo, "MonitoringEvent", doc_id)
             continue
 
-        for monType in _get_subscription_mon_types(sub):
+        for monType in get_subscription_mon_types(sub):
             if monType == MonitoringType.LOCATION_REPORTING:
                 asyncio.create_task(handle_location_report_callback(sub, ue, doc_id))
 
