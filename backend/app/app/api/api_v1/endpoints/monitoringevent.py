@@ -32,9 +32,11 @@ from app.schemas.monitoringevent import (
 from app.tools.monitoring_callbacks import (
     create_location_event_report,
     create_loss_of_connectivity_event_report,
+    create_roaming_status_event_report,
     create_ue_reachability_event_report,
     handle_location_report_callback,
     send_loss_connectivity_callback,
+    send_roaming_status_callback,
     send_ue_reachability_callback,
 )
 
@@ -157,6 +159,7 @@ async def create_subscription(
             MonitoringType.LOCATION_REPORTING,
             MonitoringType.LOSS_OF_CONNECTIVITY,
             MonitoringType.UE_REACHABILITY,
+            MonitoringType.ROAMING_STATUS,
         ):
             raise HTTPException(status_code=400, detail="Unsupported monitoring type")
 
@@ -225,6 +228,10 @@ async def create_subscription(
                         ue, 6
                     )  # 6 = UE is deregistered
                 )
+            elif monType == MonitoringType.ROAMING_STATUS:
+                reports.append(
+                    create_roaming_status_event_report(ue, item_in.plmnIndication)
+                )
 
         if len(reports) > 0:
             if len(reports) == 1:
@@ -269,6 +276,8 @@ async def create_subscription(
                 asyncio.create_task(send_ue_reachability_callback(json_data, ue, id))
             elif monType == MonitoringType.LOCATION_REPORTING:
                 asyncio.create_task(handle_location_report_callback(json_data, ue, id))
+            elif monType == MonitoringType.ROAMING_STATUS:
+                asyncio.create_task(send_roaming_status_callback(json_data, ue, id))
 
     # Add the location header pointing to created resource
     response_header = {"Location": str(item_in.self)}

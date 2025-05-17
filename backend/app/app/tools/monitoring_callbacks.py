@@ -6,6 +6,7 @@ from app import crud
 from app.core.notification_responder import notification_responder
 from app.models.UE import UE
 from app.db.session import client
+from app.schemas.commonData import PlmnId
 from app.schemas.monitoringevent import (
     GeographicalCoordinates,
     LocationInfo,
@@ -171,3 +172,45 @@ def create_ue_reachability_event_report(
         monitoringType=MonitoringType.UE_REACHABILITY,
         reachabilityType=reachability_type,
     )
+
+
+async def send_roaming_status_callback(
+    subscription,
+    ue: UE,
+    doc_id,
+):
+    notification = MonitoringNotification(
+        subscription=subscription.get("self"),
+        monitoringEventReports=[
+            create_roaming_status_event_report(ue, subscription.get("plmnIndication"))
+        ],
+    )
+
+    try:
+        await notification_responder.send_notification(
+            subscription.get("notificationDestination"), notification
+        )
+        update_maximum_reports(subscription, doc_id)
+    except Exception as ex:
+        raise ex
+
+
+def create_roaming_status_event_report(
+    ue: UE, plmnIndication: Optional[bool]
+) -> MonitoringEventReport:
+    report = MonitoringEventReport(
+        externalId=ue.external_identifier,
+        monitoringType=MonitoringType.ROAMING_STATUS,
+        roamingStatus=ue.visiting_plmnid is not None,
+    )
+
+    if plmnIndication:
+        if ue.visiting_plmnid is not None:
+            parts = ue.visiting_plmnid.split("-")
+            mcc = int(parts[0], 10)
+            mnc = int(parts[1], 10)
+            report.plmnId = PlmnId(mcc=mcc, mnc=mnc)
+        else:
+            report.plmnId = PlmnId(mcc=ue.mcc, mnc=ue.mnc)
+
+    return report
